@@ -58,12 +58,14 @@ function clampCount(value: FormDataEntryValue | null) {
 
 function buildPrompt(style: { name: string; description: string }) {
   return [
-    `Create a realistic renovation redesign of this room in the selected style: ${style.name}.`,
+    `Edit the provided room photo into a realistic residential renovation preview in the selected style: ${style.name}.`,
     `Style guidance: ${style.description}`,
-    "Preserve the room layout, camera angle, doors, windows, and major architecture.",
-    "Change finishes, color palette, lighting, built-ins, and furnishings only where visually plausible.",
-    "Do not add text, prices, floor plans, watermarks, people, or contractor claims.",
-    "This is inspiration only and must not imply a cost estimate.",
+    "Keep the original room recognizable and preserve the room layout, camera angle, wall positions, ceiling height, floor footprint, doors, windows, openings, stairs, structural-looking built-ins, and major architecture.",
+    "Focus changes on plausible renovation surfaces and movable elements: paint, flooring, lighting, cabinet fronts, countertops, backsplash, trim, hardware, window treatments, decor, and movable furniture.",
+    "Use realistic materials, colors, lighting, and scale that a homeowner could reasonably plan or ask a contractor to install.",
+    "Do not move walls, add new windows or doors, create impossible lighting, invent extra rooms, change the room footprint, use fantasy interiors, exaggerate scale, or add ultra-luxury upgrades unless the selected style clearly implies them.",
+    "Do not add people, text, labels, captions, signs, logos, watermarks, floor plans, measurements, prices, estimate tables, discounts, feasibility claims, or contractor claims.",
+    "This is visual inspiration only and must not imply a cost estimate, pricing recommendation, construction feasibility, or project guarantee.",
   ].join(" ");
 }
 
