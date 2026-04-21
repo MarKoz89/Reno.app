@@ -19,6 +19,14 @@ export type RenovationStyle = {
   description: string;
 };
 
+export type RedesignVariant = {
+  id: string;
+  title: string;
+  styleLabel: string;
+  imageUrl: string;
+  description: string;
+};
+
 export type WizardAnswers = {
   roomType: RoomType;
   roomSizeM2?: number;
@@ -55,6 +63,7 @@ export type ProjectSession = {
   updatedAt: string;
   uploadedImages: UploadedRoomImage[];
   selectedStyle?: RenovationStyle;
+  selectedRedesignVariant?: RedesignVariant;
   wizardAnswers?: WizardAnswers;
   estimate?: RenovationEstimate;
 };

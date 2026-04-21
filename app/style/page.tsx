@@ -20,8 +20,11 @@ export default function StylePage() {
     }
 
     ensureDraftProject();
-    updateDraftProject({ selectedStyle });
-    router.push("/wizard");
+    updateDraftProject({
+      selectedStyle,
+      selectedRedesignVariant: undefined,
+    });
+    router.push("/variants");
   }
 
   return (
