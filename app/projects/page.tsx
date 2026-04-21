@@ -2,20 +2,25 @@
 
 import Link from "next/link";
 import { useProjectsForDisplay } from "@/features/projects/use-local-projects";
+import { getDictionary } from "@/features/ui/dictionary";
+import { formatCurrency } from "@/features/ui/format";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 export default function ProjectsPage() {
   const projects = useProjectsForDisplay();
+  const { language, currency } = usePreferences();
+  const text = getDictionary(language);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Saved Projects
+        {text.projects.label}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Your renovation plans
+        {text.projects.title}
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-        Saved projects are stored locally in this browser. A sample project appears when no saved projects exist yet.
+        {text.projects.body}
       </p>
 
       <div className="mt-8 grid gap-4">
@@ -31,24 +36,28 @@ export default function ProjectsPage() {
                   {project.name}
                 </h2>
                 <p className="mt-1 text-sm text-zinc-600">
-                  {project.selectedStyle?.name ?? "No style selected"} -{" "}
+                  {project.selectedStyle?.name ?? text.projects.noStyle} -{" "}
                   {project.uploadedImages[0]
-                    ? "Room photo added"
-                    : "No room photo selected yet"}
+                    ? text.projects.photoAdded
+                    : text.projects.noPhoto}
                 </p>
                 {project.selectedRedesignVariant ? (
                   <p className="mt-1 text-sm text-zinc-500">
-                    Design direction: {project.selectedRedesignVariant.title}
+                    {text.projects.designDirection(project.selectedRedesignVariant.title)}
                   </p>
                 ) : null}
               </div>
               {project.estimate ? (
                 <div className="text-sm text-zinc-700 sm:text-right">
                   <p className="font-medium text-zinc-900">
-                    ${project.estimate.lowTotal.toLocaleString()} - ${project.estimate.highTotal.toLocaleString()}
+                    {formatCurrency(project.estimate.lowTotal, currency)} -{" "}
+                    {formatCurrency(project.estimate.highTotal, currency)}
                   </p>
                   <p className="mt-1">
-                    Mid ${project.estimate.midTotal.toLocaleString()} - Confidence {project.estimate.confidenceScore}/100
+                    {text.projects.midConfidence(
+                      formatCurrency(project.estimate.midTotal, currency),
+                      project.estimate.confidenceScore,
+                    )}
                   </p>
                 </div>
               ) : null}
@@ -61,7 +70,7 @@ export default function ProjectsPage() {
         href="/upload"
         className="mt-8 inline-flex w-fit rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
       >
-        Start another plan
+        {text.projects.startAnother}
       </Link>
     </main>
   );

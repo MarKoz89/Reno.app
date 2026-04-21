@@ -17,10 +17,17 @@ import type {
   RoomType,
   WizardAnswers,
 } from "@/features/projects/types";
+import { getDictionary } from "@/features/ui/dictionary";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 export default function WizardPage() {
   const router = useRouter();
   const project = useDraftProject();
+  const { language } = usePreferences();
+  const text = getDictionary(language);
+  const selectedStyleText = project?.selectedStyle
+    ? text.style.styles[project.selectedStyle.id as keyof typeof text.style.styles]
+    : undefined;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,38 +50,42 @@ export default function WizardPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Step 3
+        {text.common.step(4)}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Renovation planning wizard
+        {text.wizard.title}
       </h1>
       <p className="mt-4 text-base leading-7 text-zinc-600">
-        Enter the core details needed for a deterministic v1 planning estimate.
+        {text.wizard.body}
       </p>
-      {project?.selectedStyle ? (
+      {selectedStyleText ? (
         <p className="mt-3 text-sm text-zinc-500">
-          Selected style: {project.selectedStyle.name}
+          {text.wizard.selectedStyle(selectedStyleText.name)}
         </p>
       ) : null}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <label className="block">
-          <span className="text-sm font-medium text-zinc-900">Room type</span>
+          <span className="text-sm font-medium text-zinc-900">
+            {text.wizard.roomType}
+          </span>
           <select
             name="roomType"
             defaultValue={project?.wizardAnswers?.roomType ?? "kitchen"}
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
           >
-            <option value="kitchen">Kitchen</option>
-            <option value="bathroom">Bathroom</option>
-            <option value="living-room">Living room</option>
-            <option value="bedroom">Bedroom</option>
+            <option value="kitchen">{text.wizard.roomTypes.kitchen}</option>
+            <option value="bathroom">{text.wizard.roomTypes.bathroom}</option>
+            <option value="living-room">
+              {text.wizard.roomTypes["living-room"]}
+            </option>
+            <option value="bedroom">{text.wizard.roomTypes.bedroom}</option>
           </select>
         </label>
 
         <label className="block">
           <span className="text-sm font-medium text-zinc-900">
-            Room size in square meters
+            {text.wizard.roomSize}
           </span>
           <input
             name="roomSizeM2"
@@ -88,7 +99,7 @@ export default function WizardPage() {
 
         <label className="block">
           <span className="text-sm font-medium text-zinc-900">
-            Renovation scope
+            {text.wizard.renovationScope}
           </span>
           <select
             name="renovationScope"
@@ -97,18 +108,18 @@ export default function WizardPage() {
           >
             {renovationScopeOptions.map((scope) => (
               <option key={scope.id} value={scope.id}>
-                {scope.label}
+                {text.wizard.scopeOptions[scope.id]}
               </option>
             ))}
           </select>
           <span className="mt-2 block text-sm text-zinc-500">
-            Light is cosmetic, standard is a typical refresh, full is broader trade-heavy work.
+            {text.wizard.scopeHelp}
           </span>
         </label>
 
         <label className="block">
           <span className="text-sm font-medium text-zinc-900">
-            Quality level
+            {text.wizard.qualityLevel}
           </span>
           <select
             name="qualityLevel"
@@ -117,19 +128,21 @@ export default function WizardPage() {
           >
             {qualityLevelOptions.map((quality) => (
               <option key={quality.id} value={quality.id}>
-                {quality.label}
+                {text.wizard.qualityOptions[quality.id]}
               </option>
             ))}
           </select>
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-zinc-900">Notes</span>
+          <span className="text-sm font-medium text-zinc-900">
+            {text.wizard.notes}
+          </span>
           <textarea
             name="notes"
             rows={4}
             defaultValue={project?.wizardAnswers?.notes ?? ""}
-            placeholder="Anything to keep, avoid, or prioritize?"
+            placeholder={text.wizard.notesPlaceholder}
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
           />
         </label>
@@ -138,7 +151,7 @@ export default function WizardPage() {
           type="submit"
           className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
         >
-          Generate results
+          {text.wizard.submit}
         </button>
       </form>
     </main>

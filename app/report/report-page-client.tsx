@@ -20,23 +20,6 @@ import { getDictionary } from "@/features/ui/dictionary";
 import { formatCurrency } from "@/features/ui/format";
 import { usePreferences } from "@/features/ui/use-preferences";
 
-const renovationChecklist = [
-  "Confirm room measurements before asking for quotes.",
-  "Decide which upgrades are must-haves and which are optional.",
-  "Save the design direction and inspiration image in one place.",
-  "Review the assumptions and exclusions before comparing prices.",
-  "Ask contractors to separate labor, materials, and allowances.",
-  "Check permit needs, lead times, and delivery constraints.",
-  "Keep a contingency budget for hidden conditions or scope changes.",
-];
-
-const nextSteps = [
-  "Review the estimate range and cost breakdown.",
-  "Adjust the project details if the room size, scope, or quality level changes.",
-  "Use the checklist to prepare questions for contractors.",
-  "Compare contractor quotes against this planning range.",
-];
-
 type PlanningInsightsStatus = "idle" | "loading" | "ready" | "error";
 
 type PlanningInsights = {
@@ -87,12 +70,16 @@ function getEstimate(project: ProjectSession): RenovationEstimate | undefined {
   return calculateEstimate(project);
 }
 
-function formatRoom(roomType?: string) {
-  return roomType ? roomType.replace("-", " ") : "Not selected";
+function formatRoom(roomType: string | undefined, text: ReturnType<typeof getDictionary>) {
+  if (roomType && roomType in text.wizard.roomTypes) {
+    return text.wizard.roomTypes[roomType as keyof typeof text.wizard.roomTypes];
+  }
+
+  return text.common.notSelected;
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+function formatDate(value: string, language: "en" | "cs") {
+  return new Intl.DateTimeFormat(language === "cs" ? "cs-CZ" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -162,7 +149,7 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
             throw new Error(
               !data.ok
                 ? data.error?.message
-                : "Planning insights are unavailable.",
+                : text.report.planningInsightsUnavailable,
             );
           }
 
@@ -178,7 +165,7 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
             setErrorMessage(
               error instanceof Error
                 ? error.message
-                : "Planning insights are unavailable.",
+                : text.report.planningInsightsUnavailable,
             );
           }
         }
@@ -191,32 +178,30 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [planningInput]);
+  }, [planningInput, text]);
 
   return (
     <section className="rounded-lg border border-zinc-200 p-6">
       <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Premium preview
+        {text.report.premiumPreview}
       </p>
       <h2 className="mt-2 text-xl font-semibold text-zinc-950">
-        {text.planningInsights}
+        {text.report.planningInsights}
       </h2>
       <p className="mt-3 text-sm leading-6 text-zinc-600">
-        AI can help organize your project details into planning priorities,
-        contractor questions, and items to confirm early. Pricing still comes
-        only from Reno App&apos;s deterministic estimate engine.
+        {text.report.planningInsightsBody}
       </p>
 
       {status === "idle" ? (
         <p className="mt-4 text-sm leading-6 text-zinc-600">
-          Complete style and wizard details to generate planning insights.
+          {text.report.planningInsightsIdle}
         </p>
       ) : null}
 
       {status === "loading" ? (
         <div className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
           <p className="text-sm text-zinc-600">
-            Generating planning insights...
+            {text.report.planningInsightsLoading}
           </p>
         </div>
       ) : null}
@@ -224,11 +209,10 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
       {status === "error" ? (
         <div className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
           <p className="text-sm font-medium text-zinc-900">
-            Planning insights are unavailable.
+            {text.report.planningInsightsUnavailable}
           </p>
           <p className="mt-2 text-sm leading-6 text-zinc-600">
-            {errorMessage ??
-              "You can still use the estimate, assumptions, checklist, and next steps."}
+            {errorMessage ?? text.report.planningInsightsUnavailableBody}
           </p>
         </div>
       ) : null}
@@ -237,7 +221,7 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
         <div className="mt-6 grid gap-5 lg:grid-cols-3">
           <div>
             <h3 className="text-sm font-medium text-zinc-950">
-              Recommended priorities
+              {text.report.recommendedPriorities}
             </h3>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
               {insights.recommendations.map((item) => (
@@ -249,7 +233,7 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
           </div>
           <div>
             <h3 className="text-sm font-medium text-zinc-950">
-              Questions to ask contractors
+              {text.report.contractorQuestions}
             </h3>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
               {insights.contractorQuestions.map((item) => (
@@ -261,7 +245,7 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
           </div>
           <div>
             <h3 className="text-sm font-medium text-zinc-950">
-              Things to check early
+              {text.report.thingsToCheck}
             </h3>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
               {insights.risks.map((item) => (
@@ -294,26 +278,26 @@ export function ReportPageClient() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Planning Report
+          {text.report.title}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-          No project found
+          {text.report.notFound}
         </h1>
         <p className="mt-4 text-sm leading-6 text-zinc-600">
-          Start a renovation plan or open a saved project to preview a report.
+          {text.report.notFoundBody}
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/upload"
             className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
           >
-            Start a plan
+            {text.common.startPlan}
           </Link>
           <Link
             href="/projects"
             className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
           >
-            View projects
+            {text.common.viewProjects}
           </Link>
         </div>
       </main>
@@ -324,32 +308,31 @@ export function ReportPageClient() {
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-16">
       <header className="border-b border-zinc-200 pb-8">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-          {text.reportTitle}
+          {text.report.title}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
           {project.name}
         </h1>
         <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-600">
-          A local preview of your selected design direction, planning estimate,
-          assumptions, exclusions, checklist, and next steps.
+          {text.report.headerBody}
         </p>
         <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
           <div>
-            <dt className="font-medium text-zinc-900">Room</dt>
+            <dt className="font-medium text-zinc-900">{text.common.room}</dt>
             <dd className="mt-1 text-zinc-600">
-              {formatRoom(answers?.roomType)}
+              {formatRoom(answers?.roomType, text)}
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-zinc-900">Style</dt>
+            <dt className="font-medium text-zinc-900">{text.common.style}</dt>
             <dd className="mt-1 text-zinc-600">
-              {project.selectedStyle?.name ?? "Not selected"}
+              {project.selectedStyle?.name ?? text.common.notSelected}
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-zinc-900">Updated</dt>
+            <dt className="font-medium text-zinc-900">{text.common.updated}</dt>
             <dd className="mt-1 text-zinc-600">
-              {formatDate(project.updatedAt)}
+              {formatDate(project.updatedAt, language)}
             </dd>
           </div>
         </dl>
@@ -358,40 +341,40 @@ export function ReportPageClient() {
       <div className="grid gap-6 py-8">
         <section className="rounded-lg border border-zinc-200 p-6">
           <h2 className="text-xl font-semibold text-zinc-950">
-            Project summary
+            {text.report.projectSummary}
           </h2>
           <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <dt className="font-medium text-zinc-900">Room size</dt>
+              <dt className="font-medium text-zinc-900">{text.report.roomSize}</dt>
               <dd className="mt-1 text-zinc-600">
-                {inputSummary?.roomSize ?? "Not provided"}
+                {inputSummary?.roomSize ?? text.report.notProvided}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Scope</dt>
+              <dt className="font-medium text-zinc-900">{text.common.scope}</dt>
               <dd className="mt-1 text-zinc-600">
-                {inputSummary?.renovationScope ?? "Not selected"}
+                {inputSummary?.renovationScope ?? text.common.notSelected}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Quality</dt>
+              <dt className="font-medium text-zinc-900">{text.common.quality}</dt>
               <dd className="mt-1 text-zinc-600">
-                {inputSummary?.qualityLevel ?? "Not selected"}
+                {inputSummary?.qualityLevel ?? text.common.notSelected}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Room photo</dt>
+              <dt className="font-medium text-zinc-900">{text.report.roomPhoto}</dt>
               <dd className="mt-1 text-zinc-600">
                 {project.uploadedImages[0]
-                  ? "Room photo added"
-                  : "No room photo selected yet"}
+                  ? text.report.photoAdded
+                  : text.report.noPhoto}
               </dd>
             </div>
           </dl>
           {answers?.notes ? (
             <div className="mt-5 border-t border-zinc-200 pt-5">
               <h3 className="text-sm font-medium text-zinc-900">
-                Project notes
+                {text.report.projectNotes}
               </h3>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
                 {answers.notes}
@@ -402,7 +385,7 @@ export function ReportPageClient() {
 
         <section className="rounded-lg border border-zinc-200 p-6">
           <h2 className="text-xl font-semibold text-zinc-950">
-            Selected redesign variant
+            {text.report.selectedRedesignVariant}
           </h2>
           {project.selectedRedesignVariant ? (
             <div className="mt-4 grid gap-4 sm:grid-cols-[200px_1fr] sm:items-center">
@@ -425,13 +408,13 @@ export function ReportPageClient() {
                   {project.selectedRedesignVariant.description}
                 </p>
                 <p className="mt-3 text-sm text-zinc-500">
-                  Inspiration only. This selection does not change the estimate.
+                  {text.report.inspirationNote}
                 </p>
               </div>
             </div>
           ) : (
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              No redesign variant has been selected for this project yet.
+              {text.report.noRedesignVariant}
             </p>
           )}
         </section>
@@ -442,37 +425,36 @@ export function ReportPageClient() {
           <>
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                {text.estimateSummary}
+                {text.report.estimateSummary}
               </h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 <div>
-                  <dt className="text-sm font-medium text-zinc-900">Low</dt>
+                  <dt className="text-sm font-medium text-zinc-900">{text.common.low}</dt>
                   <dd className="mt-1 text-2xl font-semibold text-zinc-950">
                     {formatCurrency(estimate.lowTotal, currency)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-zinc-900">Mid</dt>
+                  <dt className="text-sm font-medium text-zinc-900">{text.common.mid}</dt>
                   <dd className="mt-1 text-2xl font-semibold text-zinc-950">
                     {formatCurrency(estimate.midTotal, currency)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-zinc-900">High</dt>
+                  <dt className="text-sm font-medium text-zinc-900">{text.common.high}</dt>
                   <dd className="mt-1 text-2xl font-semibold text-zinc-950">
                     {formatCurrency(estimate.highTotal, currency)}
                   </dd>
                 </div>
               </div>
               <p className="mt-4 text-sm leading-6 text-zinc-600">
-                Confidence: {estimate.confidenceScore}/100. This range uses the
-                same deterministic estimate engine shown on the results page.
+                {text.report.confidenceSummary(estimate.confidenceScore)}
               </p>
             </section>
 
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                {text.costBreakdown}
+                {text.report.costBreakdown}
               </h2>
               <div className="mt-5 divide-y divide-zinc-200">
                 {estimate.lineItems.map((item) => (
@@ -487,7 +469,7 @@ export function ReportPageClient() {
                       </p>
                     </div>
                     <p className="mt-1 text-sm leading-6 text-zinc-600">
-                      Mid: {formatCurrency(item.mid, currency)}. {item.explanation}
+                      {text.common.midLabel}: {formatCurrency(item.mid, currency)}. {item.explanation}
                     </p>
                   </div>
                 ))}
@@ -497,7 +479,7 @@ export function ReportPageClient() {
             <div className="grid gap-6 lg:grid-cols-2">
               <section className="rounded-lg border border-zinc-200 p-6">
                 <h2 className="text-xl font-semibold text-zinc-950">
-                  Assumptions
+                  {text.report.assumptions}
                 </h2>
                 <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
                   {estimate.assumptions.map((assumption) => (
@@ -513,7 +495,7 @@ export function ReportPageClient() {
 
               <section className="rounded-lg border border-zinc-200 p-6">
                 <h2 className="text-xl font-semibold text-zinc-950">
-                  Exclusions
+                  {text.report.exclusions}
                 </h2>
                 <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
                   {estimate.exclusions.map((exclusion) => (
@@ -531,17 +513,16 @@ export function ReportPageClient() {
         ) : (
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              {text.estimateSummary}
+              {text.report.estimateSummary}
             </h2>
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Complete the wizard to add a deterministic estimate to this
-              planning report.
+              {text.report.completeWizard}
             </p>
             <Link
               href="/wizard"
               className="mt-4 inline-flex rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
             >
-              Go to wizard
+              {text.common.goToWizard}
             </Link>
           </section>
         )}
@@ -549,10 +530,10 @@ export function ReportPageClient() {
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              Renovation checklist
+              {text.report.checklistTitle}
             </h2>
             <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
-              {renovationChecklist.map((item) => (
+              {text.report.checklist.map((item) => (
                 <li key={item} className="border-l-2 border-zinc-200 pl-3">
                   {item}
                 </li>
@@ -561,9 +542,11 @@ export function ReportPageClient() {
           </section>
 
           <section className="rounded-lg border border-zinc-200 p-6">
-            <h2 className="text-xl font-semibold text-zinc-950">Next steps</h2>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              {text.report.nextStepsTitle}
+            </h2>
             <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
-              {nextSteps.map((item) => (
+              {text.report.nextSteps.map((item) => (
                 <li key={item} className="border-l-2 border-zinc-200 pl-3">
                   {item}
                 </li>
@@ -574,12 +557,10 @@ export function ReportPageClient() {
 
         <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-6">
           <h2 className="text-base font-semibold text-zinc-950">
-            Local planning preview only
+            {text.report.localPreviewTitle}
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-600">
-            This report is a local product shell for planning. It does not
-            generate a PDF, export a file, process payment, or replace a
-            contractor quote.
+            {text.report.localPreviewBody}
           </p>
         </section>
       </div>
@@ -589,13 +570,13 @@ export function ReportPageClient() {
           href={projectId ? `/projects/${projectId}` : "/results"}
           className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
         >
-          Back to project
+          {text.common.backToProject}
         </Link>
         <Link
           href="/projects"
           className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
         >
-          View saved projects
+          {text.common.viewSavedProjects}
         </Link>
       </div>
     </main>

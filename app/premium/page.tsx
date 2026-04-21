@@ -1,55 +1,57 @@
+"use client";
+
 import Link from "next/link";
+import { getDictionary } from "@/features/ui/dictionary";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 export default function PremiumPage() {
+  const { language } = usePreferences();
+  const text = getDictionary(language);
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Premium
+        {text.premium.label}
       </p>
       <h1 className="max-w-2xl text-3xl font-semibold tracking-tight text-zinc-950">
-        Premium renovation planning, coming soon
+        {text.premium.title}
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-        Reno App will keep estimates explainable and deterministic. Premium is a future planning layer for organizing your project before you talk to contractors.
+        {text.premium.body}
       </p>
 
       <div className="mt-8 grid gap-6">
         <section className="rounded-lg border border-zinc-200 p-6">
           <h2 className="text-xl font-semibold text-zinc-950">
-            What stays free
+            {text.premium.freeTitle}
           </h2>
           <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
-            <li>Create a renovation estimate</li>
-            <li>Review assumptions, exclusions, and confidence</li>
-            <li>Choose a style and mock redesign direction</li>
-            <li>Save projects locally in this browser</li>
-            <li>Return to previous local plans</li>
+            {text.premium.freeItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
         </section>
 
         <section className="rounded-lg border border-zinc-200 p-6">
           <h2 className="text-xl font-semibold text-zinc-950">
-            What Premium may include
+            {text.premium.premiumTitle}
           </h2>
           <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
-            <li>Contractor-ready scope summary</li>
-            <li>Budget risk and tradeoff review</li>
-            <li>Material and finish planning checklist</li>
-            <li>Timeline preparation guide</li>
-            <li>Exportable homeowner project packet</li>
-            <li>AI-assisted explanations and recommendations later</li>
+            {text.premium.premiumItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-6">
           <h2 className="text-xl font-semibold text-zinc-950">
-            Important note
+            {text.premium.noteTitle}
           </h2>
           <p className="mt-3 text-sm leading-6 text-zinc-600">
-            Premium will not replace Reno App&apos;s deterministic estimate engine or invent prices. Estimate totals should continue to come from fixed, explainable pricing logic.
+            {text.premium.noteBody}
           </p>
           <p className="mt-3 text-sm leading-6 text-zinc-600">
-            No payment integration exists yet. This page is only a product shell for future premium planning tools.
+            {text.premium.noPayments}
           </p>
         </section>
       </div>
@@ -59,13 +61,13 @@ export default function PremiumPage() {
           href="/results"
           className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
         >
-          Back to estimate
+          {text.premium.backToEstimate}
         </Link>
         <Link
           href="/projects"
           className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
         >
-          View saved projects
+          {text.common.viewSavedProjects}
         </Link>
       </div>
     </main>

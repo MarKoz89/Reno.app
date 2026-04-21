@@ -7,6 +7,8 @@ import {
   ensureDraftProject,
 } from "@/features/projects/local-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
+import { getDictionary } from "@/features/ui/dictionary";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 const maxUploadBytes = 4 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -30,6 +32,8 @@ function readFileAsDataUrl(file: File) {
 export default function UploadPage() {
   const router = useRouter();
   const project = useDraftProject();
+  const { language } = usePreferences();
+  const text = getDictionary(language);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const hasActiveRoomPhoto = Boolean(project?.uploadedImages[0]?.previewDataUrl);
@@ -44,12 +48,12 @@ export default function UploadPage() {
     setErrorMessage(null);
 
     if (!allowedImageTypes.has(file.type)) {
-      setErrorMessage("Use a JPG, PNG, or WebP room photo.");
+      setErrorMessage(text.upload.errors.type);
       return;
     }
 
     if (file.size > maxUploadBytes) {
-      setErrorMessage("Use a room photo smaller than 4 MB.");
+      setErrorMessage(text.upload.errors.size);
       return;
     }
 
@@ -64,7 +68,7 @@ export default function UploadPage() {
         previewDataUrl,
       });
     } catch {
-      setErrorMessage("Could not read that image. Try a different room photo.");
+      setErrorMessage(text.upload.errors.read);
     } finally {
       setIsReadingFile(false);
       event.target.value = "";
@@ -76,7 +80,7 @@ export default function UploadPage() {
     const hasRealImage = Boolean(draft.uploadedImages[0]?.previewDataUrl);
 
     if (!hasRealImage) {
-      setErrorMessage("Add a room photo before continuing.");
+      setErrorMessage(text.upload.errors.required);
       return;
     }
 
@@ -86,21 +90,21 @@ export default function UploadPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Step 1
+        {text.common.step(1)}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Upload your room photo
+        {text.upload.title}
       </h1>
       <p className="mt-4 text-base leading-7 text-zinc-600">
-        Add one clear photo of the room you want to renovate. If you upload another photo later, it will replace this one.
+        {text.upload.body}
       </p>
 
       <div className="mt-8 rounded-lg border border-dashed border-zinc-300 p-6">
         <p className="text-sm font-medium text-zinc-900">
-          {hasActiveRoomPhoto ? "1 room photo selected" : "No room photo selected yet"}
+          {hasActiveRoomPhoto ? text.upload.selected : text.upload.empty}
         </p>
         <p className="mt-2 text-sm text-zinc-600">
-          The photo stays in browser storage until you save or replace it.
+          {text.upload.storageNote}
         </p>
         {errorMessage ? (
           <p className="mt-3 text-sm text-red-700">{errorMessage}</p>
@@ -108,10 +112,10 @@ export default function UploadPage() {
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <label className="inline-flex cursor-pointer rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900">
             {isReadingFile
-              ? "Reading photo..."
+              ? text.upload.reading
               : hasActiveRoomPhoto
-                ? "Replace room photo"
-                : "Choose room photo"}
+                ? text.upload.replace
+                : text.upload.choose}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -125,7 +129,7 @@ export default function UploadPage() {
             onClick={handleContinue}
             className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
           >
-            Continue to style
+            {text.upload.continue}
           </button>
         </div>
       </div>

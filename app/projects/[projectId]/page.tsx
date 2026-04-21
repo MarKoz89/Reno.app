@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjectForDisplay } from "@/features/projects/use-local-projects";
+import { getDictionary } from "@/features/ui/dictionary";
+import { formatCurrency } from "@/features/ui/format";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const project = useProjectForDisplay(params.projectId);
+  const { language, currency } = usePreferences();
+  const text = getDictionary(language);
   const savedEstimate = project?.estimate;
   const midEstimate = savedEstimate
     ? savedEstimate.midTotal ??
@@ -17,16 +22,16 @@ export default function ProjectDetailPage() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Saved Project
+          {text.projectDetail.label}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-          Project not found
+          {text.projectDetail.notFound}
         </h1>
         <Link
           href="/projects"
           className="mt-6 inline-flex w-fit rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
         >
-          Back to projects
+          {text.common.backToProjects}
         </Link>
       </main>
     );
@@ -35,47 +40,57 @@ export default function ProjectDetailPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Saved Project
+        {text.projectDetail.label}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
         {project.name}
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-        Reopened from local browser storage or the built-in sample project.
+        {text.projectDetail.reopened}
       </p>
 
       <div className="mt-8 grid gap-6">
         <section className="rounded-lg border border-zinc-200 p-6">
-          <h2 className="text-xl font-semibold text-zinc-950">Project summary</h2>
+          <h2 className="text-xl font-semibold text-zinc-950">
+            {text.projectDetail.summary}
+          </h2>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="font-medium text-zinc-900">Style</dt>
+              <dt className="font-medium text-zinc-900">{text.common.style}</dt>
               <dd className="mt-1 text-zinc-600">
-                {project.selectedStyle?.name ?? "Not selected"}
+                {project.selectedStyle?.name ?? text.common.notSelected}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Room</dt>
+              <dt className="font-medium text-zinc-900">{text.common.room}</dt>
               <dd className="mt-1 text-zinc-600">
-                {project.wizardAnswers?.roomType.replace("-", " ") ?? "Not selected"}
+                {project.wizardAnswers?.roomType.replace("-", " ") ??
+                  text.common.notSelected}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Room photo</dt>
+              <dt className="font-medium text-zinc-900">
+                {text.projectDetail.roomPhoto}
+              </dt>
               <dd className="mt-1 text-zinc-600">
-                {project.uploadedImages[0] ? "Room photo added" : "No room photo selected yet"}
+                {project.uploadedImages[0]
+                  ? text.projectDetail.photoAdded
+                  : text.projectDetail.noPhoto}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Scope</dt>
+              <dt className="font-medium text-zinc-900">{text.common.scope}</dt>
               <dd className="mt-1 text-zinc-600">
-                {project.wizardAnswers?.renovationScope ?? "Not selected"}
+                {project.wizardAnswers?.renovationScope ??
+                  text.common.notSelected}
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Quality</dt>
+              <dt className="font-medium text-zinc-900">
+                {text.common.quality}
+              </dt>
               <dd className="mt-1 text-zinc-600">
-                {project.wizardAnswers?.qualityLevel ?? "Not selected"}
+                {project.wizardAnswers?.qualityLevel ?? text.common.notSelected}
               </dd>
             </div>
           </dl>
@@ -84,11 +99,13 @@ export default function ProjectDetailPage() {
         {project.selectedRedesignVariant ? (
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              Preferred design direction
+              {text.projectDetail.preferredDesignDirection}
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
               <div
-                aria-label={`${project.selectedRedesignVariant.title} mock preview`}
+                aria-label={text.projectDetail.previewLabel(
+                  project.selectedRedesignVariant.title,
+                )}
                 className="aspect-[4/3] w-full rounded-md bg-cover bg-center"
                 role="img"
                 style={{
@@ -106,7 +123,7 @@ export default function ProjectDetailPage() {
                   {project.selectedRedesignVariant.description}
                 </p>
                 <p className="mt-3 text-sm text-zinc-500">
-                  Inspiration only. This selection does not change the estimate.
+                  {text.projectDetail.inspirationNote}
                 </p>
               </div>
             </div>
@@ -116,21 +133,27 @@ export default function ProjectDetailPage() {
         {savedEstimate ? (
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              Saved estimate
+              {text.projectDetail.savedEstimate}
             </h2>
             <p className="mt-2 text-3xl font-semibold text-zinc-950">
-              ${savedEstimate.lowTotal.toLocaleString()} - ${savedEstimate.highTotal.toLocaleString()}
+              {formatCurrency(savedEstimate.lowTotal, currency)} -{" "}
+              {formatCurrency(savedEstimate.highTotal, currency)}
             </p>
             <p className="mt-2 text-sm text-zinc-600">
-              Mid estimate: ${midEstimate?.toLocaleString()} - Confidence: {savedEstimate.confidenceScore ?? "not scored"}
+              {text.projectDetail.midEstimate}:{" "}
+              {midEstimate ? formatCurrency(midEstimate, currency) : text.common.notSelected} -{" "}
+              {text.common.confidence}:{" "}
+              {savedEstimate.confidenceScore ?? text.projectDetail.notScored}
             </p>
             <p className="mt-1 text-sm text-zinc-500">
-              Engine version: {savedEstimate.engineVersion ?? "legacy"}
+              {text.projectDetail.engineVersion}:{" "}
+              {savedEstimate.engineVersion ?? text.projectDetail.legacy}
             </p>
             <ul className="mt-4 space-y-2 text-sm text-zinc-600">
               {savedEstimate.lineItems.map((item) => (
                 <li key={item.label}>
-                  {item.label}: ${item.low.toLocaleString()} - ${item.high.toLocaleString()}
+                  {item.label}: {formatCurrency(item.low, currency)} -{" "}
+                  {formatCurrency(item.high, currency)}
                 </li>
               ))}
             </ul>
@@ -139,7 +162,9 @@ export default function ProjectDetailPage() {
 
         {savedEstimate?.assumptions?.length ? (
           <section className="rounded-lg border border-zinc-200 p-6">
-            <h2 className="text-xl font-semibold text-zinc-950">Assumptions</h2>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              {text.projectDetail.assumptions}
+            </h2>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
               {savedEstimate.assumptions.map((assumption) => (
                 <li key={assumption}>{assumption}</li>
@@ -150,7 +175,9 @@ export default function ProjectDetailPage() {
 
         {savedEstimate?.exclusions?.length ? (
           <section className="rounded-lg border border-zinc-200 p-6">
-            <h2 className="text-xl font-semibold text-zinc-950">Exclusions</h2>
+            <h2 className="text-xl font-semibold text-zinc-950">
+              {text.projectDetail.exclusions}
+            </h2>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
               {savedEstimate.exclusions.map((exclusion) => (
                 <li key={exclusion}>{exclusion}</li>
@@ -161,22 +188,21 @@ export default function ProjectDetailPage() {
 
         <section className="rounded-lg border border-zinc-200 p-6">
           <h2 className="text-xl font-semibold text-zinc-950">
-            Premium project packet
+            {text.projectDetail.premiumPacket}
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-600">
-            Premium may help turn this saved renovation into a clearer planning packet. Your saved estimate and project details remain available for free.
+            {text.projectDetail.premiumBody}
           </p>
           <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
-            <li>Printable renovation brief</li>
-            <li>Decision checklist</li>
-            <li>Contractor question list</li>
-            <li>Room-by-room planning notes</li>
+            {text.projectDetail.premiumItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
           <Link
             href={`/report?projectId=${project.id}`}
             className="mt-4 inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
           >
-            Preview report
+            {text.common.previewReport}
           </Link>
         </section>
       </div>
@@ -186,13 +212,13 @@ export default function ProjectDetailPage() {
           href="/projects"
           className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
         >
-          Back to projects
+          {text.common.backToProjects}
         </Link>
         <Link
           href="/upload"
           className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
         >
-          Start new plan
+          {text.projectDetail.startNew}
         </Link>
       </div>
     </main>

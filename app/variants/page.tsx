@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ensureDraftProject, updateDraftProject } from "@/features/projects/local-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
 import type { RedesignVariant } from "@/features/projects/types";
+import { getDictionary } from "@/features/ui/dictionary";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 type RedesignStatus = "idle" | "loading" | "ready" | "error";
 
@@ -36,86 +38,91 @@ async function dataUrlToFile(dataUrl: string, fileName: string) {
 export default function VariantsPage() {
   const router = useRouter();
   const project = useDraftProject();
+  const { language } = usePreferences();
+  const text = getDictionary(language);
   const selectedStyle = project?.selectedStyle;
+  const selectedStyleText = selectedStyle
+    ? text.style.styles[selectedStyle.id as keyof typeof text.style.styles]
+    : undefined;
   const selectedVariantId = project?.selectedRedesignVariant?.id;
   const sourceImage = project?.uploadedImages[0];
   const sourceImageDataUrl = sourceImage?.previewDataUrl;
   const sourceImageFileName = sourceImage?.fileName ?? "room-photo.png";
   const selectedStyleId = selectedStyle?.id;
   const selectedStyleName = selectedStyle?.name;
+  const missingPhotoMessage = text.variants.missingPhoto;
+  const unavailableFallbackMessage = text.variants.unavailableFallback;
+  const emptyVariantsMessage = text.variants.empty;
   const [status, setStatus] = useState<RedesignStatus>("idle");
   const [variants, setVariants] = useState<RedesignVariant[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const generateVariants = useCallback(
-    async (signal: AbortSignal) => {
-      if (!selectedStyleId || !selectedStyleName) {
-        setStatus("idle");
-        setVariants([]);
-        return;
-      }
-
-      if (!sourceImageDataUrl) {
-        setStatus("error");
-        setVariants([]);
-        setErrorMessage("Add a room photo before generating redesign ideas.");
-        return;
-      }
-
-      setStatus("loading");
-      setErrorMessage(null);
-      setVariants([]);
-
-      try {
-        const imageFile = await dataUrlToFile(
-          sourceImageDataUrl,
-          sourceImageFileName,
-        );
-        const formData = new FormData();
-        formData.set("image", imageFile);
-        formData.set("styleId", selectedStyleId);
-        formData.set("count", "1");
-
-        const response = await fetch("/api/redesign", {
-          method: "POST",
-          body: formData,
-          signal,
-        });
-        const data = (await response.json()) as RedesignResponse;
-
-        if (!response.ok || !data.ok) {
-          throw new Error(
-            !data.ok
-              ? data.error?.message
-              : "Could not generate redesign options.",
-          );
-        }
-
-        const generatedVariants = data.variants.slice(0, 3);
-
-        setVariants(generatedVariants);
-        setStatus(generatedVariants.length > 0 ? "ready" : "error");
-
-        if (generatedVariants.length === 0) {
-          setErrorMessage("No redesign options were generated.");
-        }
-      } catch (error) {
-        if (!signal.aborted) {
-          setStatus("error");
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : "Could not generate redesign options.",
-          );
-        }
-      }
-    },
-    [selectedStyleId, selectedStyleName, sourceImageDataUrl, sourceImageFileName],
-  );
-
   useEffect(() => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
+      async function generateVariants(signal: AbortSignal) {
+        if (!selectedStyleId || !selectedStyleName) {
+          setStatus("idle");
+          setVariants([]);
+          return;
+        }
+
+        if (!sourceImageDataUrl) {
+          setStatus("error");
+          setVariants([]);
+          setErrorMessage(missingPhotoMessage);
+          return;
+        }
+
+        setStatus("loading");
+        setErrorMessage(null);
+        setVariants([]);
+
+        try {
+          const imageFile = await dataUrlToFile(
+            sourceImageDataUrl,
+            sourceImageFileName,
+          );
+          const formData = new FormData();
+          formData.set("image", imageFile);
+          formData.set("styleId", selectedStyleId);
+          formData.set("count", "1");
+
+          const response = await fetch("/api/redesign", {
+            method: "POST",
+            body: formData,
+            signal,
+          });
+          const data = (await response.json()) as RedesignResponse;
+
+          if (!response.ok || !data.ok) {
+            throw new Error(
+              !data.ok
+                ? data.error?.message
+                : unavailableFallbackMessage,
+            );
+          }
+
+          const generatedVariants = data.variants.slice(0, 3);
+
+          setVariants(generatedVariants);
+          setStatus(generatedVariants.length > 0 ? "ready" : "error");
+
+          if (generatedVariants.length === 0) {
+            setErrorMessage(emptyVariantsMessage);
+          }
+        } catch (error) {
+          if (!signal.aborted) {
+            setStatus("error");
+            setErrorMessage(
+              error instanceof Error
+                ? error.message
+                : unavailableFallbackMessage,
+            );
+          }
+        }
+      }
+
       void generateVariants(controller.signal);
     }, 0);
 
@@ -123,7 +130,15 @@ export default function VariantsPage() {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [generateVariants]);
+  }, [
+    selectedStyleId,
+    selectedStyleName,
+    sourceImageDataUrl,
+    sourceImageFileName,
+    missingPhotoMessage,
+    unavailableFallbackMessage,
+    emptyVariantsMessage,
+  ]);
 
   function handleSelectVariant(variant: RedesignVariant) {
     ensureDraftProject();
@@ -141,17 +156,17 @@ export default function VariantsPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Step 3
+        {text.common.step(3)}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Choose a design direction
+        {text.variants.title}
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-        Generate AI redesign options from your current room photo and pick one for inspiration. This does not affect the estimate.
+        {text.variants.body}
       </p>
-      {selectedStyle ? (
+      {selectedStyleText ? (
         <p className="mt-3 text-sm text-zinc-500">
-          Based on your selected style: {selectedStyle.name}
+          {text.variants.basedOnStyle(selectedStyleText.name)}
         </p>
       ) : null}
 
@@ -164,10 +179,10 @@ export default function VariantsPage() {
             >
               <div className="aspect-[4/3] rounded-md bg-zinc-100" />
               <p className="mt-4 text-sm font-medium text-zinc-900">
-                Generating redesign option...
+                {text.variants.generating}
               </p>
               <p className="mt-2 text-sm text-zinc-600">
-                This can take a moment.
+                {text.variants.loadingNote}
               </p>
             </div>
           ))}
@@ -177,17 +192,17 @@ export default function VariantsPage() {
       {status === "error" ? (
         <div className="mt-8 rounded-lg border border-zinc-200 p-6">
           <p className="text-sm font-medium text-zinc-950">
-            Redesign generation is not available.
+            {text.variants.unavailable}
           </p>
           <p className="mt-2 text-sm leading-6 text-zinc-600">
-            {errorMessage ?? "Could not generate redesign options."}
+            {errorMessage ?? text.variants.unavailableFallback}
           </p>
           <button
             type="button"
             onClick={() => router.push("/upload")}
             className="mt-4 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
           >
-            Back to upload
+            {text.common.backToUpload}
           </button>
         </div>
       ) : null}
@@ -209,7 +224,7 @@ export default function VariantsPage() {
                 }`}
               >
                 <div
-                  aria-label={`${variant.title} AI redesign preview`}
+                  aria-label={text.variants.previewLabel(variant.title)}
                   className="aspect-[4/3] w-full bg-cover bg-center"
                   role="img"
                   style={{ backgroundImage: `url(${variant.imageUrl})` }}
@@ -226,7 +241,7 @@ export default function VariantsPage() {
                     </div>
                     {isSelected ? (
                       <span className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-medium text-white">
-                        Preferred
+                        {text.variants.preferred}
                       </span>
                     ) : null}
                   </div>
@@ -234,7 +249,7 @@ export default function VariantsPage() {
                     {variant.description}
                   </p>
                   <p className="mt-4 text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    AI-generated inspiration
+                    {text.variants.inspiration}
                   </p>
                 </div>
               </button>
@@ -250,14 +265,14 @@ export default function VariantsPage() {
           disabled={!project?.selectedRedesignVariant}
           className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
         >
-          Continue to wizard
+          {text.variants.continue}
         </button>
         <button
           type="button"
           onClick={() => router.push("/style")}
           className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
         >
-          Back to styles
+          {text.common.backToStyles}
         </button>
       </div>
     </main>

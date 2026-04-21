@@ -5,7 +5,7 @@ import type { Currency, Language } from "@/features/ui/use-preferences";
 
 const languageOptions: Array<{ label: string; value: Language }> = [
   { label: "EN", value: "en" },
-  { label: "CZ", value: "cs" },
+  { label: "CS", value: "cs" },
 ];
 
 const currencyOptions: Array<{ label: string; value: Currency }> = [

@@ -12,20 +12,23 @@ import { getDictionary } from "@/features/ui/dictionary";
 import { formatCurrency } from "@/features/ui/format";
 import { usePreferences } from "@/features/ui/use-preferences";
 
-function getConfidenceLabel(score: number) {
+function getConfidenceLabel(
+  score: number,
+  labels: ReturnType<typeof getDictionary>["results"]["confidenceLabels"],
+) {
   if (score >= 85) {
-    return "Strong early estimate";
+    return labels.strong;
   }
 
   if (score >= 70) {
-    return "Useful planning estimate";
+    return labels.useful;
   }
 
   if (score >= 50) {
-    return "Broad estimate";
+    return labels.broad;
   }
 
-  return "Rough starting point";
+  return labels.rough;
 }
 
 export default function ResultsPage() {
@@ -46,55 +49,63 @@ export default function ResultsPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        {text.resultsLabel}
+        {text.results.label}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        {text.resultsTitle}
+        {text.results.title}
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-        This planning range is calculated from your room details, scope, and quality level.
+        {text.results.intro}
       </p>
 
       {!answers || !estimate || !inputSummary ? (
         <div className="mt-8 rounded-lg border border-zinc-200 p-6">
           <p className="text-sm text-zinc-700">
-            Complete the wizard first to generate results.
+            {text.results.completeWizard}
           </p>
           <Link
             href="/wizard"
             className="mt-4 inline-flex rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
           >
-            Go to wizard
+            {text.common.goToWizard}
           </Link>
         </div>
       ) : (
         <div className="mt-8 grid gap-6">
           <section className="rounded-lg border border-zinc-200 p-6">
             <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-              {text.estimatedPlanningRange}
+              {text.results.estimatedPlanningRange}
             </p>
             <p className="mt-3 text-4xl font-semibold tracking-tight text-zinc-950">
               {formatCurrency(estimate.lowTotal, currency)} - {formatCurrency(estimate.highTotal, currency)}
             </p>
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              {text.midEstimate}: {formatCurrency(estimate.midTotal, currency)}. This is an early planning estimate, not a contractor quote.
+              {text.results.midEstimate}: {formatCurrency(estimate.midTotal, currency)}. {text.results.notQuote}
             </p>
 
             <div className="mt-6 grid gap-4 border-t border-zinc-200 pt-5 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <dt className="text-sm font-medium text-zinc-900">Room</dt>
+                <dt className="text-sm font-medium text-zinc-900">
+                  {text.common.room}
+                </dt>
                 <dd className="mt-1 text-sm text-zinc-600">{inputSummary.roomType}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-zinc-900">Room size</dt>
+                <dt className="text-sm font-medium text-zinc-900">
+                  {text.report.roomSize}
+                </dt>
                 <dd className="mt-1 text-sm text-zinc-600">{inputSummary.roomSize}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-zinc-900">Scope</dt>
+                <dt className="text-sm font-medium text-zinc-900">
+                  {text.common.scope}
+                </dt>
                 <dd className="mt-1 text-sm text-zinc-600">{inputSummary.renovationScope}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-zinc-900">Quality</dt>
+                <dt className="text-sm font-medium text-zinc-900">
+                  {text.common.quality}
+                </dt>
                 <dd className="mt-1 text-sm text-zinc-600">{inputSummary.qualityLevel}</dd>
               </div>
             </div>
@@ -103,7 +114,7 @@ export default function ResultsPage() {
           {project.selectedRedesignVariant ? (
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Preferred design direction
+                {text.results.preferredDesignDirection}
               </h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
                 <div
@@ -125,7 +136,7 @@ export default function ResultsPage() {
                     {project.selectedRedesignVariant.description}
                   </p>
                   <p className="mt-3 text-sm text-zinc-500">
-                    Inspiration only. This selection does not change the estimate.
+                    {text.results.inspirationNote}
                   </p>
                 </div>
               </div>
@@ -135,38 +146,40 @@ export default function ResultsPage() {
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Why this estimate
+                {text.results.whyEstimate}
               </h2>
               <p className="mt-3 text-sm leading-6 text-zinc-600">
-                Reno App uses fixed local pricing rules. The same room type, room size, scope, and quality level will produce the same estimate.
+                {text.results.whyEstimateBody}
               </p>
               <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
-                <li>Room type sets the base cost per square meter.</li>
-                <li>Scope adjusts the estimate for light, standard, or full renovation work.</li>
-                <li>Quality level adjusts material and finish allowances.</li>
-                <li>A simple complexity factor accounts for higher-risk room types, full scope, and sparse notes.</li>
+                {text.results.whyEstimateItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </section>
 
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Estimate confidence
+                {text.results.estimateConfidence}
               </h2>
               <p className="mt-3 text-3xl font-semibold text-zinc-950">
                 {estimate.confidenceScore}/100
               </p>
               <p className="mt-2 text-sm font-medium text-zinc-900">
-                {getConfidenceLabel(estimate.confidenceScore)}
+                {getConfidenceLabel(
+                  estimate.confidenceScore,
+                  text.results.confidenceLabels,
+                )}
               </p>
               <p className="mt-3 text-sm leading-6 text-zinc-600">
-                Confidence reflects how complete your inputs are. Photos, style selection, room details, and specific notes improve confidence; missing details reduce it.
+                {text.results.confidenceBody}
               </p>
               <p className="mt-3 text-sm leading-6 text-zinc-600">
-                Confidence does not change the estimate total. It shows how much project detail Reno App had when creating this planning range.
+                {text.results.confidenceTotalNote}
               </p>
               <div className="mt-5 border-t border-zinc-200 pt-4">
                 <h3 className="text-sm font-medium text-zinc-950">
-                  Why confidence is this level
+                  {text.results.confidenceReasonsTitle}
                 </h3>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
                   {estimate.confidenceReasons.map((reason) => (
@@ -181,7 +194,7 @@ export default function ResultsPage() {
 
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              {text.costBreakdown}
+              {text.results.costBreakdown}
             </h2>
             <div className="mt-5 divide-y divide-zinc-200">
               {estimate.lineItems.map((item) => (
@@ -193,7 +206,7 @@ export default function ResultsPage() {
                     </p>
                   </div>
                   <p className="mt-1 text-sm leading-6 text-zinc-600">
-                    Mid: {formatCurrency(item.mid, currency)}. {item.explanation}
+                    {text.results.itemMid}: {formatCurrency(item.mid, currency)}. {item.explanation}
                   </p>
                 </div>
               ))}
@@ -203,10 +216,10 @@ export default function ResultsPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                What this estimate assumes
+                {text.results.assumptionsTitle}
               </h2>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                These rules explain what the planning range is based on.
+                {text.results.assumptionsBody}
               </p>
               <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
                 {estimate.assumptions.map((assumption) => (
@@ -219,10 +232,10 @@ export default function ResultsPage() {
 
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Not included in this estimate
+                {text.results.exclusionsTitle}
               </h2>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                These items can change final project cost and should be checked before hiring.
+                {text.results.exclusionsBody}
               </p>
               <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
                 {estimate.exclusions.map((exclusion) => (
@@ -237,7 +250,7 @@ export default function ResultsPage() {
           {answers.notes ? (
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Your notes
+                {text.results.notesTitle}
               </h2>
               <p className="mt-3 text-sm leading-6 text-zinc-600">
                 {answers.notes}
@@ -247,25 +260,25 @@ export default function ResultsPage() {
 
           <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-6">
             <h2 className="text-base font-semibold text-zinc-950">
-              Planning estimate only
+              {text.results.planningOnlyTitle}
             </h2>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Reno App estimates are generated from fixed cost rules and your project inputs. Final costs can vary by location, contractor availability, site conditions, permits, taxes, and material choices.
+              {text.results.planningOnlyBody}
             </p>
           </section>
 
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-base font-semibold text-zinc-950">
-              Want a cleaner planning packet?
+              {text.results.premiumTitle}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-              Premium planning tools may help organize this estimate into a scope summary, budget-risk review, checklist, and contractor questions. Your deterministic estimate stays available for free and does not change.
+              {text.results.premiumBody}
             </p>
             <Link
               href="/report"
               className="mt-4 inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
             >
-              Preview report
+              {text.common.previewReport}
             </Link>
           </section>
 
@@ -275,13 +288,13 @@ export default function ResultsPage() {
               onClick={handleSaveProject}
               className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
             >
-              Save project
+              {text.results.saveProject}
             </button>
             <Link
               href="/projects"
               className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
             >
-              View projects
+              {text.common.viewProjects}
             </Link>
           </div>
         </div>
