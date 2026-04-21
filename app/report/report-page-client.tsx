@@ -40,6 +40,25 @@ const nextSteps = [
   "Compare contractor quotes against this planning range.",
 ];
 
+type PlanningInsightsStatus = "idle" | "loading" | "ready" | "error";
+
+type PlanningInsights = {
+  recommendations: string[];
+  contractorQuestions: string[];
+  risks: string[];
+};
+
+type PlanningInsightsResponse =
+  | ({
+      ok: true;
+    } & PlanningInsights)
+  | {
+      ok: false;
+      error?: {
+        message?: string;
+      };
+    };
+
 function getProjectForReport(projectId: string | null) {
   return projectId ? getProjectForDisplayById(projectId) : getDraftProject();
 }
@@ -81,6 +100,182 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function PlanningInsightsSection({ project }: { project: ProjectSession }) {
+  const answers = project.wizardAnswers;
+  const style = project.selectedStyle;
+  const styleId = style?.id;
+  const roomType = answers?.roomType;
+  const roomSizeM2 = answers?.roomSizeM2;
+  const renovationScope = answers?.renovationScope;
+  const qualityLevel = answers?.qualityLevel;
+  const notes = answers?.notes ?? "";
+  const planningInput = useMemo(() => {
+    if (
+      !styleId ||
+      !roomType ||
+      !renovationScope ||
+      !qualityLevel
+    ) {
+      return null;
+    }
+
+    return {
+      styleId,
+      roomType,
+      roomSizeM2,
+      renovationScope,
+      qualityLevel,
+      notes,
+    };
+  }, [notes, qualityLevel, renovationScope, roomSizeM2, roomType, styleId]);
+  const [status, setStatus] = useState<PlanningInsightsStatus>("idle");
+  const [insights, setInsights] = useState<PlanningInsights | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      async function loadPlanningInsights() {
+        if (!planningInput) {
+          setStatus("idle");
+          setInsights(null);
+          return;
+        }
+
+        setStatus("loading");
+        setErrorMessage(null);
+        setInsights(null);
+
+        try {
+          const response = await fetch("/api/planning", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(planningInput),
+            signal: controller.signal,
+          });
+          const data = (await response.json()) as PlanningInsightsResponse;
+
+          if (!response.ok || !data.ok) {
+            throw new Error(
+              !data.ok
+                ? data.error?.message
+                : "Planning insights are unavailable.",
+            );
+          }
+
+          setInsights({
+            recommendations: data.recommendations,
+            contractorQuestions: data.contractorQuestions,
+            risks: data.risks,
+          });
+          setStatus("ready");
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            setStatus("error");
+            setErrorMessage(
+              error instanceof Error
+                ? error.message
+                : "Planning insights are unavailable.",
+            );
+          }
+        }
+      }
+
+      void loadPlanningInsights();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [planningInput]);
+
+  return (
+    <section className="rounded-lg border border-zinc-200 p-6">
+      <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+        Premium preview
+      </p>
+      <h2 className="mt-2 text-xl font-semibold text-zinc-950">
+        Planning insights
+      </h2>
+      <p className="mt-3 text-sm leading-6 text-zinc-600">
+        AI can help organize your project details into planning priorities,
+        contractor questions, and items to confirm early. Pricing still comes
+        only from Reno App&apos;s deterministic estimate engine.
+      </p>
+
+      {status === "idle" ? (
+        <p className="mt-4 text-sm leading-6 text-zinc-600">
+          Complete style and wizard details to generate planning insights.
+        </p>
+      ) : null}
+
+      {status === "loading" ? (
+        <div className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
+          <p className="text-sm text-zinc-600">
+            Generating planning insights...
+          </p>
+        </div>
+      ) : null}
+
+      {status === "error" ? (
+        <div className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
+          <p className="text-sm font-medium text-zinc-900">
+            Planning insights are unavailable.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            {errorMessage ??
+              "You can still use the estimate, assumptions, checklist, and next steps."}
+          </p>
+        </div>
+      ) : null}
+
+      {status === "ready" && insights ? (
+        <div className="mt-6 grid gap-5 lg:grid-cols-3">
+          <div>
+            <h3 className="text-sm font-medium text-zinc-950">
+              Recommended priorities
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
+              {insights.recommendations.map((item) => (
+                <li key={item} className="border-l-2 border-zinc-200 pl-3">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-zinc-950">
+              Questions to ask contractors
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
+              {insights.contractorQuestions.map((item) => (
+                <li key={item} className="border-l-2 border-zinc-200 pl-3">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-zinc-950">
+              Things to check early
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
+              {insights.risks.map((item) => (
+                <li key={item} className="border-l-2 border-zinc-200 pl-3">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 export function ReportPageClient() {
@@ -237,6 +432,8 @@ export function ReportPageClient() {
             </p>
           )}
         </section>
+
+        <PlanningInsightsSection project={project} />
 
         {estimate ? (
           <>
