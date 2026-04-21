@@ -178,11 +178,9 @@ export function createMockProject(): ProjectSession {
     selectedStyle: renovationStyles[1],
     wizardAnswers: {
       roomType: "bathroom",
-      roomSize: "small",
-      renovationGoal: "cosmetic-refresh",
-      budgetRange: "5000-15000",
-      priority: "appearance",
-      scopeItems: ["paint", "fixtures", "lighting"],
+      roomSizeM2: 8,
+      renovationScope: "light",
+      qualityLevel: "standard",
       notes: "Keep the layout, brighten the finishes, and avoid major plumbing work.",
     },
   };

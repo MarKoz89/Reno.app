@@ -2,6 +2,10 @@ export type RoomType = "kitchen" | "bathroom" | "living-room" | "bedroom";
 
 export type ProjectStatus = "draft" | "saved";
 
+export type RenovationScope = "light" | "standard" | "full";
+
+export type QualityLevel = "budget" | "standard" | "premium";
+
 export type UploadedRoomImage = {
   id: string;
   fileName: string;
@@ -17,26 +21,29 @@ export type RenovationStyle = {
 
 export type WizardAnswers = {
   roomType: RoomType;
-  roomSize: "small" | "medium" | "large";
-  renovationGoal: "cosmetic-refresh" | "functional-upgrade" | "resale-prep";
-  budgetRange: "under-5000" | "5000-15000" | "15000-30000";
-  priority: "cost" | "speed" | "durability" | "appearance";
-  scopeItems: string[];
+  roomSizeM2?: number;
+  renovationScope?: RenovationScope;
+  qualityLevel?: QualityLevel;
   notes: string;
 };
 
 export type EstimateLineItem = {
   label: string;
   low: number;
+  mid: number;
   high: number;
   explanation: string;
 };
 
 export type RenovationEstimate = {
+  engineVersion: "v1";
   lowTotal: number;
+  midTotal: number;
   highTotal: number;
   lineItems: EstimateLineItem[];
   assumptions: string[];
+  exclusions: string[];
+  confidenceScore: number;
 };
 
 export type ProjectSession = {
@@ -50,4 +57,3 @@ export type ProjectSession = {
   wizardAnswers?: WizardAnswers;
   estimate?: RenovationEstimate;
 };
-

@@ -1,39 +1,37 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { scopeOptions } from "@/features/estimation/calculate-estimate";
+import {
+  qualityLevelOptions,
+  renovationScopeOptions,
+} from "@/features/estimation/calculate-estimate";
 import {
   ensureDraftProject,
   updateWizardAnswers,
 } from "@/features/projects/local-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
-import type { RoomType, WizardAnswers } from "@/features/projects/types";
+import type {
+  QualityLevel,
+  RenovationScope,
+  RoomType,
+  WizardAnswers,
+} from "@/features/projects/types";
 
 export default function WizardPage() {
   const router = useRouter();
   const project = useDraftProject();
-  const [scopeItems, setScopeItems] = useState<string[]>(["paint"]);
-
-  function toggleScope(scopeId: string) {
-    setScopeItems((currentScope) =>
-      currentScope.includes(scopeId)
-        ? currentScope.filter((item) => item !== scopeId)
-        : [...currentScope, scopeId],
-    );
-  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const roomSizeM2 = Number(form.get("roomSizeM2"));
 
     const answers: WizardAnswers = {
       roomType: form.get("roomType") as RoomType,
-      roomSize: form.get("roomSize") as WizardAnswers["roomSize"],
-      renovationGoal: form.get("renovationGoal") as WizardAnswers["renovationGoal"],
-      budgetRange: form.get("budgetRange") as WizardAnswers["budgetRange"],
-      priority: form.get("priority") as WizardAnswers["priority"],
-      scopeItems,
+      roomSizeM2: Number.isFinite(roomSizeM2) && roomSizeM2 > 0 ? roomSizeM2 : undefined,
+      renovationScope: form.get("renovationScope") as RenovationScope,
+      qualityLevel: form.get("qualityLevel") as QualityLevel,
       notes: String(form.get("notes") ?? ""),
     };
 
@@ -51,7 +49,7 @@ export default function WizardPage() {
         Renovation planning wizard
       </h1>
       <p className="mt-4 text-base leading-7 text-zinc-600">
-        Answer a few practical questions to create a local mock estimate.
+        Enter the core details needed for a deterministic v1 planning estimate.
       </p>
       {project?.selectedStyle ? (
         <p className="mt-3 text-sm text-zinc-500">
@@ -64,7 +62,7 @@ export default function WizardPage() {
           <span className="text-sm font-medium text-zinc-900">Room type</span>
           <select
             name="roomType"
-            defaultValue="kitchen"
+            defaultValue={project?.wizardAnswers?.roomType ?? "kitchen"}
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
           >
             <option value="kitchen">Kitchen</option>
@@ -75,79 +73,62 @@ export default function WizardPage() {
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-zinc-900">Room size</span>
-          <select
-            name="roomSize"
-            defaultValue="medium"
+          <span className="text-sm font-medium text-zinc-900">
+            Room size in square meters
+          </span>
+          <input
+            name="roomSizeM2"
+            type="number"
+            min="1"
+            step="0.5"
+            defaultValue={project?.wizardAnswers?.roomSizeM2 ?? 12}
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
-          >
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
-          </select>
+          />
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-zinc-900">Goal</span>
+          <span className="text-sm font-medium text-zinc-900">
+            Renovation scope
+          </span>
           <select
-            name="renovationGoal"
-            defaultValue="cosmetic-refresh"
+            name="renovationScope"
+            defaultValue={project?.wizardAnswers?.renovationScope ?? "standard"}
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
           >
-            <option value="cosmetic-refresh">Cosmetic refresh</option>
-            <option value="functional-upgrade">Functional upgrade</option>
-            <option value="resale-prep">Resale prep</option>
-          </select>
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium text-zinc-900">Budget range</span>
-          <select
-            name="budgetRange"
-            defaultValue="5000-15000"
-            className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
-          >
-            <option value="under-5000">Under $5,000</option>
-            <option value="5000-15000">$5,000 to $15,000</option>
-            <option value="15000-30000">$15,000 to $30,000</option>
-          </select>
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium text-zinc-900">Top priority</span>
-          <select
-            name="priority"
-            defaultValue="cost"
-            className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
-          >
-            <option value="cost">Cost</option>
-            <option value="speed">Speed</option>
-            <option value="durability">Durability</option>
-            <option value="appearance">Appearance</option>
-          </select>
-        </label>
-
-        <fieldset>
-          <legend className="text-sm font-medium text-zinc-900">Scope</legend>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {scopeOptions.map((scope) => (
-              <label key={scope.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={scopeItems.includes(scope.id)}
-                  onChange={() => toggleScope(scope.id)}
-                />
+            {renovationScopeOptions.map((scope) => (
+              <option key={scope.id} value={scope.id}>
                 {scope.label}
-              </label>
+              </option>
             ))}
-          </div>
-        </fieldset>
+          </select>
+          <span className="mt-2 block text-sm text-zinc-500">
+            Light is cosmetic, standard is a typical refresh, full is broader trade-heavy work.
+          </span>
+        </label>
+
+        <label className="block">
+          <span className="text-sm font-medium text-zinc-900">
+            Quality level
+          </span>
+          <select
+            name="qualityLevel"
+            defaultValue={project?.wizardAnswers?.qualityLevel ?? "standard"}
+            className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
+          >
+            {qualityLevelOptions.map((quality) => (
+              <option key={quality.id} value={quality.id}>
+                {quality.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label className="block">
           <span className="text-sm font-medium text-zinc-900">Notes</span>
           <textarea
             name="notes"
             rows={4}
+            defaultValue={project?.wizardAnswers?.notes ?? ""}
             placeholder="Anything to keep, avoid, or prioritize?"
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2"
           />

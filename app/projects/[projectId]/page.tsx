@@ -7,6 +7,11 @@ import { useProjectForDisplay } from "@/features/projects/use-local-projects";
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const project = useProjectForDisplay(params.projectId);
+  const savedEstimate = project?.estimate;
+  const midEstimate = savedEstimate
+    ? savedEstimate.midTotal ??
+      Math.round((savedEstimate.lowTotal + savedEstimate.highTotal) / 2)
+    : undefined;
 
   if (!project) {
     return (
@@ -62,24 +67,33 @@ export default function ProjectDetailPage() {
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Priority</dt>
+              <dt className="font-medium text-zinc-900">Scope</dt>
               <dd className="mt-1 text-zinc-600">
-                {project.wizardAnswers?.priority ?? "Not selected"}
+                {project.wizardAnswers?.renovationScope ?? "Not selected"}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-zinc-900">Quality</dt>
+              <dd className="mt-1 text-zinc-600">
+                {project.wizardAnswers?.qualityLevel ?? "Not selected"}
               </dd>
             </div>
           </dl>
         </section>
 
-        {project.estimate ? (
+        {savedEstimate ? (
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
               Saved estimate
             </h2>
             <p className="mt-2 text-3xl font-semibold text-zinc-950">
-              ${project.estimate.lowTotal.toLocaleString()} - ${project.estimate.highTotal.toLocaleString()}
+              ${savedEstimate.lowTotal.toLocaleString()} - ${savedEstimate.highTotal.toLocaleString()}
+            </p>
+            <p className="mt-2 text-sm text-zinc-600">
+              Mid estimate: ${midEstimate?.toLocaleString()} - Confidence: {savedEstimate.confidenceScore ?? "not scored"}
             </p>
             <ul className="mt-4 space-y-2 text-sm text-zinc-600">
-              {project.estimate.lineItems.map((item) => (
+              {savedEstimate.lineItems.map((item) => (
                 <li key={item.label}>
                   {item.label}: ${item.low.toLocaleString()} - ${item.high.toLocaleString()}
                 </li>
