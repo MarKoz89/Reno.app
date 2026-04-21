@@ -263,10 +263,10 @@ export default function ResultsPage() {
               Premium planning tools may help organize this estimate into a scope summary, budget-risk review, checklist, and contractor questions. Your deterministic estimate stays available for free and does not change.
             </p>
             <Link
-              href="/premium"
+              href="/report"
               className="mt-4 inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
             >
-              See Premium
+              Preview report
             </Link>
           </section>
 
