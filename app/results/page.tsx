@@ -133,24 +133,20 @@ export default function ResultsPage() {
               <p className="mt-3 text-sm leading-6 text-zinc-600">
                 Confidence does not change the estimate total. It shows how much project detail Reno App had when creating this planning range.
               </p>
+              <div className="mt-5 border-t border-zinc-200 pt-4">
+                <h3 className="text-sm font-medium text-zinc-950">
+                  Why confidence is this level
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
+                  {estimate.confidenceReasons.map((reason) => (
+                    <li key={reason} className="border-l-2 border-zinc-200 pl-3">
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </section>
           </div>
-
-          <section className="rounded-lg border border-zinc-200 p-6">
-            <h2 className="text-xl font-semibold text-zinc-950">
-              What affects this estimate
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
-              These are the strongest confidence signals from your project inputs.
-            </p>
-            <ul className="mt-4 grid gap-3 text-sm leading-6 text-zinc-600 md:grid-cols-2">
-              {estimate.confidenceReasons.map((reason) => (
-                <li key={reason} className="rounded-md border border-zinc-200 p-3">
-                  {reason}
-                </li>
-              ))}
-            </ul>
-          </section>
 
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
