@@ -130,8 +130,27 @@ export default function ResultsPage() {
               <p className="mt-3 text-sm leading-6 text-zinc-600">
                 Confidence reflects how complete your inputs are. Photos, style selection, room details, and specific notes improve confidence; missing details reduce it.
               </p>
+              <p className="mt-3 text-sm leading-6 text-zinc-600">
+                Confidence does not change the estimate total. It shows how much project detail Reno App had when creating this planning range.
+              </p>
             </section>
           </div>
+
+          <section className="rounded-lg border border-zinc-200 p-6">
+            <h2 className="text-xl font-semibold text-zinc-950">
+              What affects this estimate
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-600">
+              These are the strongest confidence signals from your project inputs.
+            </p>
+            <ul className="mt-4 grid gap-3 text-sm leading-6 text-zinc-600 md:grid-cols-2">
+              {estimate.confidenceReasons.map((reason) => (
+                <li key={reason} className="rounded-md border border-zinc-200 p-3">
+                  {reason}
+                </li>
+              ))}
+            </ul>
+          </section>
 
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
