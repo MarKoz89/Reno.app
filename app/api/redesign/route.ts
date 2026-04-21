@@ -182,15 +182,10 @@ export async function POST(request: Request) {
   let providerResponse: Response;
 
   try {
-    console.log("redesign route hit");
-    console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
-    console.log("model:", process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini");
-    console.log("calling OpenAI edits...");
     providerResponse = await postToImageProvider({
       apiKey,
       body: providerForm,
     });
-    console.log("OpenAI response status:", providerResponse.status);
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
 

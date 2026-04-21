@@ -76,13 +76,11 @@ export default function VariantsPage() {
         formData.set("styleId", selectedStyleId);
         formData.set("count", "1");
 
-        console.log("Starting redesign request...");
         const response = await fetch("/api/redesign", {
           method: "POST",
           body: formData,
           signal,
         });
-        console.log("Redesign response status:", response.status);
         const data = (await response.json()) as RedesignResponse;
 
         if (!response.ok || !data.ok) {
