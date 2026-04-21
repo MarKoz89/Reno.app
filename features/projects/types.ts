@@ -11,6 +11,7 @@ export type UploadedRoomImage = {
   fileName: string;
   label: string;
   addedAt: string;
+  previewDataUrl?: string;
 };
 
 export type RenovationStyle = {

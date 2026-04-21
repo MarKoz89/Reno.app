@@ -132,6 +132,34 @@ export function addMockRoomImage(label: string) {
   return updatedDraft;
 }
 
+export function addLocalRoomImage({
+  fileName,
+  label,
+  previewDataUrl,
+}: {
+  fileName: string;
+  label: string;
+  previewDataUrl: string;
+}) {
+  const draft = ensureDraftProject();
+  const image: UploadedRoomImage = {
+    id: createId("image"),
+    fileName,
+    label,
+    addedAt: now(),
+    previewDataUrl,
+  };
+
+  const updatedDraft = {
+    ...draft,
+    uploadedImages: [...draft.uploadedImages, image],
+    updatedAt: now(),
+  };
+
+  saveDraftProject(updatedDraft);
+  return updatedDraft;
+}
+
 export function updateDraftProject(updates: Partial<ProjectSession>) {
   const draft = ensureDraftProject();
   const updatedDraft = {
