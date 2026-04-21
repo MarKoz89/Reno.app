@@ -44,6 +44,7 @@ export type RenovationEstimate = {
   assumptions: string[];
   exclusions: string[];
   confidenceScore: number;
+  confidenceReasons: string[];
 };
 
 export type ProjectSession = {

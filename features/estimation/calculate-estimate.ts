@@ -27,6 +27,7 @@ type NormalizedCostInput = {
   hasSelectedStyle: boolean;
   uploadedImageCount: number;
   usedFallbacks: string[];
+  missingFields: string[];
 };
 
 type LineItemRule = {
@@ -170,20 +171,25 @@ export const qualityLevelOptions: Array<{
 
 function normalizeInput(input: CostInput): NormalizedCostInput {
   const usedFallbacks: string[] = [];
+  const missingFields: string[] = [];
 
   if (!input.roomType) {
+    missingFields.push("room type");
     usedFallbacks.push("Room type was missing, so kitchen rates were used.");
   }
 
   if (!input.roomSizeM2 || input.roomSizeM2 <= 0) {
+    missingFields.push("room size");
     usedFallbacks.push("Room size was missing, so a 12 m2 planning size was used.");
   }
 
   if (!input.renovationScope) {
+    missingFields.push("renovation scope");
     usedFallbacks.push("Renovation scope was missing, so standard scope was used.");
   }
 
   if (!input.qualityLevel) {
+    missingFields.push("quality level");
     usedFallbacks.push("Quality level was missing, so standard quality was used.");
   }
 
@@ -199,6 +205,7 @@ function normalizeInput(input: CostInput): NormalizedCostInput {
     hasSelectedStyle: input.hasSelectedStyle,
     uploadedImageCount: input.uploadedImageCount,
     usedFallbacks,
+    missingFields,
   };
 }
 
@@ -223,24 +230,83 @@ function getComplexityFactor(input: NormalizedCostInput) {
   return Math.min(factor, 1.3);
 }
 
-function getConfidenceScore(input: NormalizedCostInput) {
-  let confidence = 92;
+const realisticRoomSizeM2ByRoomType: Record<
+  RoomType,
+  { min: number; max: number }
+> = {
+  kitchen: { min: 5, max: 35 },
+  bathroom: { min: 2, max: 18 },
+  "living-room": { min: 8, max: 60 },
+  bedroom: { min: 6, max: 35 },
+};
 
-  confidence -= input.usedFallbacks.length * 10;
+function isRealisticRoomSize(input: NormalizedCostInput) {
+  const range = realisticRoomSizeM2ByRoomType[input.roomType];
+
+  return input.roomSizeM2 >= range.min && input.roomSizeM2 <= range.max;
+}
+
+function getConfidence(input: NormalizedCostInput) {
+  let confidence = 55;
+  const positiveReasons: string[] = [];
+  const limitingReasons: string[] = [];
+
+  if (input.missingFields.length > 0) {
+    confidence -= input.missingFields.length * 8;
+    limitingReasons.push(
+      `Missing ${input.missingFields.join(", ")} reduced confidence because defaults were used.`,
+    );
+  }
+
+  if (input.missingFields.includes("room size")) {
+    confidence -= 10;
+    limitingReasons.push("Room size was not provided, so a default planning size was used.");
+  } else if (isRealisticRoomSize(input)) {
+    confidence += 14;
+    positiveReasons.push("Room size is provided and falls within a realistic planning range.");
+  } else {
+    confidence -= 10;
+    limitingReasons.push("Room size looks unusual, so the estimate is less specific.");
+  }
+
+  if (!input.missingFields.includes("renovation scope")) {
+    confidence += 8;
+    positiveReasons.push("Renovation scope is defined, which helps size the work.");
+  }
+
+  if (!input.missingFields.includes("quality level")) {
+    confidence += 8;
+    positiveReasons.push("Quality level is selected, which helps set material allowances.");
+  }
 
   if (!input.notes.trim()) {
-    confidence -= 5;
+    confidence -= 6;
+    limitingReasons.push("No project notes were added, so site-specific details are limited.");
+  } else {
+    confidence += 8;
+    positiveReasons.push("Project notes add useful context about priorities and constraints.");
   }
 
   if (!input.hasSelectedStyle) {
-    confidence -= 3;
+    confidence -= 4;
+    limitingReasons.push("No style was selected, so finish expectations are less clear.");
+  } else {
+    confidence += 5;
+    positiveReasons.push("Selected style gives more context for finish expectations.");
   }
 
   if (input.uploadedImageCount === 0) {
-    confidence -= 7;
+    confidence -= 8;
+    limitingReasons.push("No room photos were added, so the estimate relies only on written inputs.");
+  } else {
+    confidence += Math.min(7, input.uploadedImageCount * 4);
+    positiveReasons.push("Room photos improve context for the saved planning session.");
   }
 
-  return Math.max(35, Math.min(95, confidence));
+  return {
+    score: Math.max(35, Math.min(95, confidence)),
+    reasons: [...positiveReasons, ...limitingReasons].slice(0, 4),
+  };
 }
 
 function createLineItems(midTotal: number, input: NormalizedCostInput) {
@@ -279,6 +345,7 @@ function createAssumptions(input: NormalizedCostInput, complexityFactor: number)
 function calculateCostEstimate(input: CostInput): RenovationEstimate {
   const normalizedInput = normalizeInput(input);
   const complexityFactor = getComplexityFactor(normalizedInput);
+  const confidence = getConfidence(normalizedInput);
 
   const midBeforeRange =
     normalizedInput.roomSizeM2 *
@@ -298,7 +365,8 @@ function calculateCostEstimate(input: CostInput): RenovationEstimate {
     lineItems,
     assumptions: createAssumptions(normalizedInput, complexityFactor),
     exclusions,
-    confidenceScore: getConfidenceScore(normalizedInput),
+    confidenceScore: confidence.score,
+    confidenceReasons: confidence.reasons,
   };
 }
 
