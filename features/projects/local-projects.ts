@@ -9,6 +9,12 @@ import type {
 const draftKey = "reno-app:draft-project";
 const projectsKey = "reno-app:saved-projects";
 const projectStorageEvent = "reno-app:project-storage-changed";
+let cachedDraftRaw: string | null = null;
+let cachedDraftProject: ProjectSession | null = null;
+let cachedSavedProjectsRaw: string | null = null;
+let cachedSavedProjects: ProjectSession[] = [];
+let cachedMockProject: ProjectSession | null = null;
+let cachedProjectsForDisplay: ProjectSession[] | null = null;
 
 function now() {
   return new Date().toISOString();
@@ -73,7 +79,22 @@ export function createDraftProject(): ProjectSession {
 }
 
 export function getDraftProject() {
-  return readJson<ProjectSession | null>(draftKey, null);
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawDraft = window.localStorage.getItem(draftKey);
+
+  if (rawDraft === cachedDraftRaw) {
+    return cachedDraftProject;
+  }
+
+  cachedDraftRaw = rawDraft;
+  cachedDraftProject = rawDraft
+    ? readJson<ProjectSession | null>(draftKey, null)
+    : null;
+
+  return cachedDraftProject;
 }
 
 export function ensureDraftProject() {
@@ -131,7 +152,23 @@ export function updateWizardAnswers(answers: WizardAnswers) {
 }
 
 export function getSavedProjects() {
-  return readJson<ProjectSession[]>(projectsKey, []);
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const rawProjects = window.localStorage.getItem(projectsKey);
+
+  if (rawProjects === cachedSavedProjectsRaw) {
+    return cachedSavedProjects;
+  }
+
+  cachedSavedProjectsRaw = rawProjects;
+  cachedSavedProjects = rawProjects
+    ? readJson<ProjectSession[]>(projectsKey, [])
+    : [];
+  cachedProjectsForDisplay = null;
+
+  return cachedSavedProjects;
 }
 
 export function saveProjectFromDraft() {
@@ -160,6 +197,10 @@ export function getProjectById(projectId: string) {
 }
 
 export function createMockProject(): ProjectSession {
+  if (cachedMockProject) {
+    return cachedMockProject;
+  }
+
   const timestamp = now();
   const project: ProjectSession = {
     id: "sample-project",
@@ -185,10 +226,12 @@ export function createMockProject(): ProjectSession {
     },
   };
 
-  return {
+  cachedMockProject = {
     ...project,
     estimate: calculateEstimate(project),
   };
+
+  return cachedMockProject;
 }
 
 export function getProjectsForDisplay() {
@@ -198,7 +241,11 @@ export function getProjectsForDisplay() {
     return savedProjects;
   }
 
-  return [createMockProject()];
+  if (!cachedProjectsForDisplay) {
+    cachedProjectsForDisplay = [createMockProject()];
+  }
+
+  return cachedProjectsForDisplay;
 }
 
 export function getProjectForDisplayById(projectId: string) {

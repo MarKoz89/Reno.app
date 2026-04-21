@@ -30,7 +30,7 @@ export function useProjectsForDisplay() {
 export function useProjectForDisplay(projectId: string) {
   return useSyncExternalStore(
     subscribeToProjectStorage,
-    () => getProjectForDisplayById(projectId),
+    () => (projectId ? getProjectForDisplayById(projectId) : null),
     () => null,
   );
 }
