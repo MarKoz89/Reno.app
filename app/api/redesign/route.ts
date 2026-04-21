@@ -173,19 +173,24 @@ export async function POST(request: Request) {
   }
 
   const providerForm = new FormData();
-  providerForm.set("model", process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1.5");
+  providerForm.set("model", process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini");
   providerForm.set("image", image);
   providerForm.set("prompt", buildPrompt(style));
-  providerForm.set("n", String(count));
-  providerForm.set("size", "1536x1024");
+  providerForm.set("n", "1");
+  providerForm.set("size", "1024x1024");
 
   let providerResponse: Response;
 
   try {
+    console.log("redesign route hit");
+    console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
+    console.log("model:", process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini");
+    console.log("calling OpenAI edits...");
     providerResponse = await postToImageProvider({
       apiKey,
       body: providerForm,
     });
+    console.log("OpenAI response status:", providerResponse.status);
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
 
@@ -258,7 +263,7 @@ export async function POST(request: Request) {
     meta: {
       styleId: style.id,
       styleName: style.name,
-      model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1.5",
+      model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini",
     },
   });
 }
