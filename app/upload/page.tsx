@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   addMockRoomImage,
@@ -11,11 +11,9 @@ import type { ProjectSession } from "@/features/projects/types";
 
 export default function UploadPage() {
   const router = useRouter();
-  const [project, setProject] = useState<ProjectSession | null>(null);
-
-  useEffect(() => {
-    setProject(ensureDraftProject());
-  }, []);
+  const [project, setProject] = useState<ProjectSession | null>(() =>
+    typeof window === "undefined" ? null : ensureDraftProject(),
+  );
 
   function handleAddRoomPhoto() {
     setProject(addMockRoomImage("Room photo"));
