@@ -34,6 +34,11 @@ export default function ProjectsPage() {
                   {project.selectedStyle?.name ?? "No style selected"} - {project.uploadedImages.length} photo
                   {project.uploadedImages.length === 1 ? "" : "s"}
                 </p>
+                {project.selectedRedesignVariant ? (
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Design direction: {project.selectedRedesignVariant.title}
+                  </p>
+                ) : null}
               </div>
               {project.estimate ? (
                 <div className="text-sm text-zinc-700 sm:text-right">

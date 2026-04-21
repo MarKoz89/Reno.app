@@ -81,6 +81,38 @@ export default function ProjectDetailPage() {
           </dl>
         </section>
 
+        {project.selectedRedesignVariant ? (
+          <section className="rounded-lg border border-zinc-200 p-6">
+            <h2 className="text-xl font-semibold text-zinc-950">
+              Preferred design direction
+            </h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
+              <div
+                aria-label={`${project.selectedRedesignVariant.title} mock preview`}
+                className="aspect-[4/3] w-full rounded-md bg-cover bg-center"
+                role="img"
+                style={{
+                  backgroundImage: `url(${project.selectedRedesignVariant.imageUrl})`,
+                }}
+              />
+              <div>
+                <p className="text-sm font-medium text-zinc-500">
+                  {project.selectedRedesignVariant.styleLabel}
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-zinc-950">
+                  {project.selectedRedesignVariant.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  {project.selectedRedesignVariant.description}
+                </p>
+                <p className="mt-3 text-sm text-zinc-500">
+                  Inspiration only. This selection does not change the estimate.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {savedEstimate ? (
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
