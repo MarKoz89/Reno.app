@@ -8,12 +8,9 @@ import {
 } from "@/features/estimation/calculate-estimate";
 import { saveProjectFromDraft } from "@/features/projects/local-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
-
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+import { getDictionary } from "@/features/ui/dictionary";
+import { formatCurrency } from "@/features/ui/format";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 function getConfidenceLabel(score: number) {
   if (score >= 85) {
@@ -34,6 +31,8 @@ function getConfidenceLabel(score: number) {
 export default function ResultsPage() {
   const router = useRouter();
   const project = useDraftProject();
+  const { language, currency } = usePreferences();
+  const text = getDictionary(language);
 
   function handleSaveProject() {
     const savedProject = saveProjectFromDraft();
@@ -47,10 +46,10 @@ export default function ResultsPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Results
+        {text.resultsLabel}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Your renovation estimate
+        {text.resultsTitle}
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
         This planning range is calculated from your room details, scope, and quality level.
@@ -72,13 +71,13 @@ export default function ResultsPage() {
         <div className="mt-8 grid gap-6">
           <section className="rounded-lg border border-zinc-200 p-6">
             <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-              Estimated planning range
+              {text.estimatedPlanningRange}
             </p>
             <p className="mt-3 text-4xl font-semibold tracking-tight text-zinc-950">
-              {currency.format(estimate.lowTotal)} - {currency.format(estimate.highTotal)}
+              {formatCurrency(estimate.lowTotal, currency)} - {formatCurrency(estimate.highTotal, currency)}
             </p>
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Mid estimate: {currency.format(estimate.midTotal)}. This is an early planning estimate, not a contractor quote.
+              {text.midEstimate}: {formatCurrency(estimate.midTotal, currency)}. This is an early planning estimate, not a contractor quote.
             </p>
 
             <div className="mt-6 grid gap-4 border-t border-zinc-200 pt-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -182,7 +181,7 @@ export default function ResultsPage() {
 
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              Cost breakdown
+              {text.costBreakdown}
             </h2>
             <div className="mt-5 divide-y divide-zinc-200">
               {estimate.lineItems.map((item) => (
@@ -190,11 +189,11 @@ export default function ResultsPage() {
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <h3 className="font-medium text-zinc-950">{item.label}</h3>
                     <p className="text-sm font-medium text-zinc-900">
-                      {currency.format(item.low)} - {currency.format(item.high)}
+                      {formatCurrency(item.low, currency)} - {formatCurrency(item.high, currency)}
                     </p>
                   </div>
                   <p className="mt-1 text-sm leading-6 text-zinc-600">
-                    Mid: {currency.format(item.mid)}. {item.explanation}
+                    Mid: {formatCurrency(item.mid, currency)}. {item.explanation}
                   </p>
                 </div>
               ))}

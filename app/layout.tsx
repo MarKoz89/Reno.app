@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PreferencesSwitcher } from "@/features/ui/preferences-switcher";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,7 +29,14 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       style={{ colorScheme: "light" }}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <header className="border-b border-zinc-200 px-6 py-3">
+          <div className="mx-auto flex w-full max-w-5xl justify-end">
+            <PreferencesSwitcher />
+          </div>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }
