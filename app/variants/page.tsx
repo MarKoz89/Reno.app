@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ensureDraftProject, updateDraftProject } from "@/features/projects/local-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
 import type { RedesignVariant } from "@/features/projects/types";
@@ -38,10 +38,7 @@ export default function VariantsPage() {
   const project = useDraftProject();
   const selectedStyle = project?.selectedStyle;
   const selectedVariantId = project?.selectedRedesignVariant?.id;
-  const sourceImage = useMemo(
-    () => project?.uploadedImages.find((image) => image.previewDataUrl),
-    [project?.uploadedImages],
-  );
+  const sourceImage = project?.uploadedImages[0];
   const sourceImageDataUrl = sourceImage?.previewDataUrl;
   const sourceImageFileName = sourceImage?.fileName ?? "room-photo.png";
   const selectedStyleId = selectedStyle?.id;
@@ -61,7 +58,7 @@ export default function VariantsPage() {
       if (!sourceImageDataUrl) {
         setStatus("error");
         setVariants([]);
-        setErrorMessage("Upload a room photo before generating redesign ideas.");
+        setErrorMessage("Add a room photo before generating redesign ideas.");
         return;
       }
 
@@ -150,7 +147,7 @@ export default function VariantsPage() {
         Choose a design direction
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-        Generate AI redesign options from your room photo and pick one for inspiration. This does not affect the estimate.
+        Generate AI redesign options from your current room photo and pick one for inspiration. This does not affect the estimate.
       </p>
       {selectedStyle ? (
         <p className="mt-3 text-sm text-zinc-500">

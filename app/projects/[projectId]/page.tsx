@@ -61,9 +61,9 @@ export default function ProjectDetailPage() {
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Photos</dt>
+              <dt className="font-medium text-zinc-900">Room photo</dt>
               <dd className="mt-1 text-zinc-600">
-                {project.uploadedImages.length}
+                {project.uploadedImages[0] ? "Room photo added" : "No room photo selected yet"}
               </dd>
             </div>
             <div>

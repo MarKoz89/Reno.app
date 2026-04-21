@@ -16,17 +16,14 @@ import type {
   ProjectSession,
   RenovationEstimate,
 } from "@/features/projects/types";
-
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+import { getDictionary } from "@/features/ui/dictionary";
+import { formatCurrency } from "@/features/ui/format";
+import { usePreferences } from "@/features/ui/use-preferences";
 
 const renovationChecklist = [
   "Confirm room measurements before asking for quotes.",
   "Decide which upgrades are must-haves and which are optional.",
-  "Save the design direction and any inspiration photos in one place.",
+  "Save the design direction and inspiration image in one place.",
   "Review the assumptions and exclusions before comparing prices.",
   "Ask contractors to separate labor, materials, and allowances.",
   "Check permit needs, lead times, and delivery constraints.",
@@ -103,6 +100,8 @@ function formatDate(value: string) {
 }
 
 function PlanningInsightsSection({ project }: { project: ProjectSession }) {
+  const { language } = usePreferences();
+  const text = getDictionary(language);
   const answers = project.wizardAnswers;
   const style = project.selectedStyle;
   const styleId = style?.id;
@@ -200,7 +199,7 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
         Premium preview
       </p>
       <h2 className="mt-2 text-xl font-semibold text-zinc-950">
-        Planning insights
+        {text.planningInsights}
       </h2>
       <p className="mt-3 text-sm leading-6 text-zinc-600">
         AI can help organize your project details into planning priorities,
@@ -281,6 +280,8 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
 export function ReportPageClient() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId");
+  const { language, currency } = usePreferences();
+  const text = getDictionary(language);
   const project = useReportProject(projectId);
   const estimate = useMemo(
     () => (project ? getEstimate(project) : undefined),
@@ -323,7 +324,7 @@ export function ReportPageClient() {
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-16">
       <header className="border-b border-zinc-200 pb-8">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Renovation planning report
+          {text.reportTitle}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
           {project.name}
@@ -379,9 +380,11 @@ export function ReportPageClient() {
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-900">Photos</dt>
+              <dt className="font-medium text-zinc-900">Room photo</dt>
               <dd className="mt-1 text-zinc-600">
-                {project.uploadedImages.length}
+                {project.uploadedImages[0]
+                  ? "Room photo added"
+                  : "No room photo selected yet"}
               </dd>
             </div>
           </dl>
@@ -439,25 +442,25 @@ export function ReportPageClient() {
           <>
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Estimate summary
+                {text.estimateSummary}
               </h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 <div>
                   <dt className="text-sm font-medium text-zinc-900">Low</dt>
                   <dd className="mt-1 text-2xl font-semibold text-zinc-950">
-                    {currency.format(estimate.lowTotal)}
+                    {formatCurrency(estimate.lowTotal, currency)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-zinc-900">Mid</dt>
                   <dd className="mt-1 text-2xl font-semibold text-zinc-950">
-                    {currency.format(estimate.midTotal)}
+                    {formatCurrency(estimate.midTotal, currency)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-zinc-900">High</dt>
                   <dd className="mt-1 text-2xl font-semibold text-zinc-950">
-                    {currency.format(estimate.highTotal)}
+                    {formatCurrency(estimate.highTotal, currency)}
                   </dd>
                 </div>
               </div>
@@ -469,7 +472,7 @@ export function ReportPageClient() {
 
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
-                Cost breakdown
+                {text.costBreakdown}
               </h2>
               <div className="mt-5 divide-y divide-zinc-200">
                 {estimate.lineItems.map((item) => (
@@ -479,12 +482,12 @@ export function ReportPageClient() {
                         {item.label}
                       </h3>
                       <p className="text-sm font-medium text-zinc-900">
-                        {currency.format(item.low)} -{" "}
-                        {currency.format(item.high)}
+                        {formatCurrency(item.low, currency)} -{" "}
+                        {formatCurrency(item.high, currency)}
                       </p>
                     </div>
                     <p className="mt-1 text-sm leading-6 text-zinc-600">
-                      Mid: {currency.format(item.mid)}. {item.explanation}
+                      Mid: {formatCurrency(item.mid, currency)}. {item.explanation}
                     </p>
                   </div>
                 ))}
@@ -528,7 +531,7 @@ export function ReportPageClient() {
         ) : (
           <section className="rounded-lg border border-zinc-200 p-6">
             <h2 className="text-xl font-semibold text-zinc-950">
-              Estimate summary
+              {text.estimateSummary}
             </h2>
             <p className="mt-3 text-sm leading-6 text-zinc-600">
               Complete the wizard to add a deterministic estimate to this

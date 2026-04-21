@@ -38,10 +38,9 @@ export default function StylePage() {
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
         Pick one simple direction for the project. This stays local in the browser.
       </p>
-      {project?.uploadedImages.length ? (
+      {project?.uploadedImages[0] ? (
         <p className="mt-3 text-sm text-zinc-500">
-          Draft has {project.uploadedImages.length} mock photo
-          {project.uploadedImages.length === 1 ? "" : "s"}.
+          Room photo added to this draft.
         </p>
       ) : null}
 

@@ -118,15 +118,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const image = form.get("image");
+  const images = form.getAll("image");
   const styleId = String(form.get("styleId") ?? "");
   const count = clampCount(form.get("count"));
   const style = getStyleById(styleId);
 
+  if (images.length !== 1) {
+    return jsonError(
+      images.length === 0 ? "MISSING_IMAGE" : "BAD_REQUEST",
+      images.length === 0
+        ? "Add one room photo before generating redesign ideas."
+        : "Send exactly one room photo for redesign generation.",
+      400,
+      false,
+    );
+  }
+
+  const image = images[0];
+
   if (!(image instanceof File)) {
     return jsonError(
       "MISSING_IMAGE",
-      "Add a room photo before generating redesign ideas.",
+      "Add one room photo before generating redesign ideas.",
       400,
       false,
     );

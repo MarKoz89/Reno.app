@@ -32,6 +32,7 @@ export default function UploadPage() {
   const project = useDraftProject();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
+  const hasActiveRoomPhoto = Boolean(project?.uploadedImages[0]?.previewDataUrl);
 
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -72,10 +73,10 @@ export default function UploadPage() {
 
   function handleContinue() {
     const draft = project ?? ensureDraftProject();
-    const hasRealImage = draft.uploadedImages.some((image) => image.previewDataUrl);
+    const hasRealImage = Boolean(draft.uploadedImages[0]?.previewDataUrl);
 
     if (!hasRealImage) {
-      setErrorMessage("Upload a room photo before continuing.");
+      setErrorMessage("Add a room photo before continuing.");
       return;
     }
 
@@ -88,26 +89,29 @@ export default function UploadPage() {
         Step 1
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Upload room photos
+        Upload your room photo
       </h1>
       <p className="mt-4 text-base leading-7 text-zinc-600">
-        Add one room photo so Reno App can generate redesign inspiration.
+        Add one clear photo of the room you want to renovate. If you upload another photo later, it will replace this one.
       </p>
 
       <div className="mt-8 rounded-lg border border-dashed border-zinc-300 p-6">
         <p className="text-sm font-medium text-zinc-900">
-          {project?.uploadedImages.length ?? 0} room photo
-          {(project?.uploadedImages.length ?? 0) === 1 ? "" : "s"} saved in this draft
+          {hasActiveRoomPhoto ? "1 room photo selected" : "No room photo selected yet"}
         </p>
         <p className="mt-2 text-sm text-zinc-600">
-          The photo stays in browser storage until you generate redesign options.
+          The photo stays in browser storage until you save or replace it.
         </p>
         {errorMessage ? (
           <p className="mt-3 text-sm text-red-700">{errorMessage}</p>
         ) : null}
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <label className="inline-flex cursor-pointer rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900">
-            {isReadingFile ? "Adding photo..." : "Choose room photo"}
+            {isReadingFile
+              ? "Reading photo..."
+              : hasActiveRoomPhoto
+                ? "Replace room photo"
+                : "Choose room photo"}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"

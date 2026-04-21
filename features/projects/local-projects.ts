@@ -24,6 +24,25 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function normalizeUploadedImages(images: UploadedRoomImage[] | undefined) {
+  if (!images?.length) {
+    return [];
+  }
+
+  const activeImage =
+    [...images].reverse().find((image) => image.previewDataUrl) ??
+    images[images.length - 1];
+
+  return activeImage ? [activeImage] : [];
+}
+
+function normalizeProjectSession(project: ProjectSession): ProjectSession {
+  return {
+    ...project,
+    uploadedImages: normalizeUploadedImages(project.uploadedImages),
+  };
+}
+
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") {
     return fallback;
@@ -90,9 +109,10 @@ export function getDraftProject() {
   }
 
   cachedDraftRaw = rawDraft;
-  cachedDraftProject = rawDraft
+  const parsedDraft = rawDraft
     ? readJson<ProjectSession | null>(draftKey, null)
     : null;
+  cachedDraftProject = parsedDraft ? normalizeProjectSession(parsedDraft) : null;
 
   return cachedDraftProject;
 }
@@ -110,7 +130,7 @@ export function ensureDraftProject() {
 }
 
 export function saveDraftProject(project: ProjectSession) {
-  writeJson(draftKey, { ...project, updatedAt: now() });
+  writeJson(draftKey, normalizeProjectSession({ ...project, updatedAt: now() }));
 }
 
 export function addMockRoomImage(label: string) {
@@ -124,7 +144,8 @@ export function addMockRoomImage(label: string) {
 
   const updatedDraft = {
     ...draft,
-    uploadedImages: [...draft.uploadedImages, image],
+    uploadedImages: [image],
+    selectedRedesignVariant: undefined,
     updatedAt: now(),
   };
 
@@ -152,7 +173,8 @@ export function addLocalRoomImage({
 
   const updatedDraft = {
     ...draft,
-    uploadedImages: [...draft.uploadedImages, image],
+    uploadedImages: [image],
+    selectedRedesignVariant: undefined,
     updatedAt: now(),
   };
 
@@ -165,6 +187,9 @@ export function updateDraftProject(updates: Partial<ProjectSession>) {
   const updatedDraft = {
     ...draft,
     ...updates,
+    uploadedImages: normalizeUploadedImages(
+      updates.uploadedImages ?? draft.uploadedImages,
+    ),
     updatedAt: now(),
   };
 
@@ -192,7 +217,7 @@ export function getSavedProjects() {
 
   cachedSavedProjectsRaw = rawProjects;
   cachedSavedProjects = rawProjects
-    ? readJson<ProjectSession[]>(projectsKey, [])
+    ? readJson<ProjectSession[]>(projectsKey, []).map(normalizeProjectSession)
     : [];
   cachedProjectsForDisplay = null;
 
@@ -200,7 +225,7 @@ export function getSavedProjects() {
 }
 
 export function saveProjectFromDraft() {
-  const draft = ensureDraftProject();
+  const draft = normalizeProjectSession(ensureDraftProject());
   const project: ProjectSession = {
     ...draft,
     status: "saved",

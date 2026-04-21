@@ -31,8 +31,10 @@ export default function ProjectsPage() {
                   {project.name}
                 </h2>
                 <p className="mt-1 text-sm text-zinc-600">
-                  {project.selectedStyle?.name ?? "No style selected"} - {project.uploadedImages.length} photo
-                  {project.uploadedImages.length === 1 ? "" : "s"}
+                  {project.selectedStyle?.name ?? "No style selected"} -{" "}
+                  {project.uploadedImages[0]
+                    ? "Room photo added"
+                    : "No room photo selected yet"}
                 </p>
                 {project.selectedRedesignVariant ? (
                   <p className="mt-1 text-sm text-zinc-500">
