@@ -1,3 +1,11 @@
+import {
+  pricingCatalog,
+  roomTemplateByType,
+} from "@/data/pricing-catalog";
+import type {
+  ScopeItemRule,
+  RoomPricingTemplate,
+} from "@/features/estimation/pricing-types";
 import type {
   EstimateLineItem,
   ProjectSession,
@@ -26,148 +34,30 @@ type NormalizedCostInput = {
   notes: string;
   hasSelectedStyle: boolean;
   uploadedImageCount: number;
+  roomTemplate: RoomPricingTemplate;
   usedFallbacks: string[];
   missingFields: string[];
 };
 
-type LineItemRule = {
-  label: string;
-  share: number;
-  explanation: string;
-};
+export const renovationScopeOptions = Object.values(
+  pricingCatalog.scopeModifiers,
+).map(({ id, label, description }) => ({
+  id,
+  label,
+  description,
+}));
 
-const defaultRoomType: RoomType = "kitchen";
-const defaultRoomSizeM2 = 12;
-const defaultRenovationScope: RenovationScope = "standard";
-const defaultQualityLevel: QualityLevel = "standard";
+export const qualityLevelOptions = Object.values(pricingCatalog.qualityBands).map(
+  ({ id, label, description }) => ({
+    id,
+    label,
+    description,
+  }),
+);
 
-// Standard-scope, standard-quality planning rates in USD per square meter.
-const costPerM2ByRoomType: Record<RoomType, number> = {
-  kitchen: 1800,
-  bathroom: 2200,
-  "living-room": 650,
-  bedroom: 550,
-};
-
-const scopeMultipliers: Record<RenovationScope, number> = {
-  light: 0.55,
-  standard: 1,
-  full: 1.65,
-};
-
-const qualityMultipliers: Record<QualityLevel, number> = {
-  budget: 0.8,
-  standard: 1,
-  premium: 1.35,
-};
-
-const defaultLineItems: LineItemRule[] = [
-  {
-    label: "Preparation and protection",
-    share: 0.1,
-    explanation: "Room protection, surface prep, minor removal, and setup.",
-  },
-  {
-    label: "Labor and installation",
-    share: 0.34,
-    explanation: "Core trade labor and installation time for the selected scope.",
-  },
-  {
-    label: "Materials and finishes",
-    share: 0.3,
-    explanation: "Finish materials such as paint, flooring, tile, trim, or surfaces.",
-  },
-  {
-    label: "Fixtures and equipment",
-    share: 0.16,
-    explanation: "Visible fixtures, hardware, lighting, and room-specific fittings.",
-  },
-  {
-    label: "Planning contingency",
-    share: 0.1,
-    explanation: "Buffer for unknowns, small scope changes, and pricing variance.",
-  },
-];
-
-const wetRoomLineItems: LineItemRule[] = [
-  {
-    label: "Preparation and protection",
-    share: 0.1,
-    explanation: "Room protection, surface prep, minor removal, and setup.",
-  },
-  {
-    label: "Labor and installation",
-    share: 0.34,
-    explanation: "Core trade labor and installation time for the selected scope.",
-  },
-  {
-    label: "Materials and finishes",
-    share: 0.24,
-    explanation: "Finish materials such as tile, surfaces, paint, and flooring.",
-  },
-  {
-    label: "Fixtures and equipment",
-    share: 0.22,
-    explanation: "Room-specific fixtures, hardware, lighting, and equipment allowances.",
-  },
-  {
-    label: "Planning contingency",
-    share: 0.1,
-    explanation: "Buffer for unknowns, small scope changes, and pricing variance.",
-  },
-];
-
-const exclusions = [
-  "Permit fees beyond a basic planning allowance.",
-  "Structural engineering or structural repairs.",
-  "Hazardous material testing or remediation.",
-  "Major plumbing, electrical, or HVAC service upgrades.",
-  "Furniture, appliances, decor, financing, tax, and contractor margin variability.",
-];
-
-export const renovationScopeOptions: Array<{
-  id: RenovationScope;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "light",
-    label: "Light",
-    description: "Cosmetic updates, finishes, and minor fixture changes.",
-  },
-  {
-    id: "standard",
-    label: "Standard",
-    description: "Typical refresh with finishes, fixtures, and installation work.",
-  },
-  {
-    id: "full",
-    label: "Full",
-    description: "Broad renovation scope with trade-heavy work and more unknowns.",
-  },
-];
-
-export const qualityLevelOptions: Array<{
-  id: QualityLevel;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "budget",
-    label: "Budget",
-    description: "Cost-conscious finishes and simple, durable choices.",
-  },
-  {
-    id: "standard",
-    label: "Standard",
-    description: "Balanced materials and broadly available fixtures.",
-  },
-  {
-    id: "premium",
-    label: "Premium",
-    description: "Higher-end finishes, fixtures, and detail allowances.",
-  },
-];
+function getRoomTemplate(roomType: RoomType) {
+  return roomTemplateByType[roomType];
+}
 
 function normalizeInput(input: CostInput): NormalizedCostInput {
   const usedFallbacks: string[] = [];
@@ -175,12 +65,17 @@ function normalizeInput(input: CostInput): NormalizedCostInput {
 
   if (!input.roomType) {
     missingFields.push("room type");
-    usedFallbacks.push("Room type was missing, so kitchen rates were used.");
+    usedFallbacks.push("Room type was missing, so the default room template was used.");
   }
+
+  const roomType = input.roomType ?? pricingCatalog.defaultRoomType;
+  const roomTemplate = getRoomTemplate(roomType);
 
   if (!input.roomSizeM2 || input.roomSizeM2 <= 0) {
     missingFields.push("room size");
-    usedFallbacks.push("Room size was missing, so a 12 m2 planning size was used.");
+    usedFallbacks.push(
+      `Room size was missing, so a ${roomTemplate.defaultRoomSizeM2} m2 planning size was used.`,
+    );
   }
 
   if (!input.renovationScope) {
@@ -194,16 +89,17 @@ function normalizeInput(input: CostInput): NormalizedCostInput {
   }
 
   return {
-    roomType: input.roomType ?? defaultRoomType,
+    roomType,
     roomSizeM2:
       input.roomSizeM2 && input.roomSizeM2 > 0
         ? input.roomSizeM2
-        : defaultRoomSizeM2,
-    renovationScope: input.renovationScope ?? defaultRenovationScope,
-    qualityLevel: input.qualityLevel ?? defaultQualityLevel,
+        : roomTemplate.defaultRoomSizeM2,
+    renovationScope: input.renovationScope ?? pricingCatalog.defaultRenovationScope,
+    qualityLevel: input.qualityLevel ?? pricingCatalog.defaultQualityLevel,
     notes: input.notes ?? "",
     hasSelectedStyle: input.hasSelectedStyle,
     uploadedImageCount: input.uploadedImageCount,
+    roomTemplate,
     usedFallbacks,
     missingFields,
   };
@@ -230,18 +126,8 @@ function getComplexityFactor(input: NormalizedCostInput) {
   return Math.min(factor, 1.3);
 }
 
-const realisticRoomSizeM2ByRoomType: Record<
-  RoomType,
-  { min: number; max: number }
-> = {
-  kitchen: { min: 5, max: 35 },
-  bathroom: { min: 2, max: 18 },
-  "living-room": { min: 8, max: 60 },
-  bedroom: { min: 6, max: 35 },
-};
-
 function isRealisticRoomSize(input: NormalizedCostInput) {
-  const range = realisticRoomSizeM2ByRoomType[input.roomType];
+  const range = input.roomTemplate.realisticSizeM2;
 
   return input.roomSizeM2 >= range.min && input.roomSizeM2 <= range.max;
 }
@@ -297,10 +183,10 @@ function getConfidence(input: NormalizedCostInput) {
 
   if (input.uploadedImageCount === 0) {
     confidence -= 8;
-    limitingReasons.push("No room photos were added, so the estimate relies only on written inputs.");
+    limitingReasons.push("No room photo was added, so the estimate relies only on written inputs.");
   } else {
-    confidence += Math.min(7, input.uploadedImageCount * 4);
-    positiveReasons.push("Room photos improve context for the saved planning session.");
+    confidence += 7;
+    positiveReasons.push("A room photo improves context for the saved planning session.");
   }
 
   return {
@@ -309,31 +195,123 @@ function getConfidence(input: NormalizedCostInput) {
   };
 }
 
-function createLineItems(midTotal: number, input: NormalizedCostInput) {
-  const rules =
-    input.roomType === "kitchen" || input.roomType === "bathroom"
-      ? wetRoomLineItems
-      : defaultLineItems;
+function getRuleQuantity(
+  rule: ScopeItemRule,
+  input: NormalizedCostInput,
+) {
+  if (rule.quantityBasis === "room-size") {
+    return input.roomSizeM2;
+  }
 
-  return rules.map<EstimateLineItem>((rule) => {
-    const mid = Math.round(midTotal * rule.share);
+  if (rule.quantityBasis === "room-template") {
+    return (
+      input.roomTemplate.quantityOverrides?.[rule.id] ?? rule.defaultQuantity
+    );
+  }
 
-    return {
-      label: rule.label,
-      low: Math.round(mid * 0.9),
-      mid,
-      high: Math.round(mid * 1.15),
-      explanation: rule.explanation,
-    };
+  return rule.defaultQuantity;
+}
+
+function getLineItemSubtotal(rule: ScopeItemRule, input: NormalizedCostInput) {
+  const quantity = getRuleQuantity(rule, input);
+  const scopeModifier = pricingCatalog.scopeModifiers[input.renovationScope];
+  const marketFactor =
+    pricingCatalog.marketFactors[pricingCatalog.defaultMarketFactorId];
+  const materialUnitCost = rule.materialUnitCostByQuality[input.qualityLevel];
+
+  const laborLow =
+    quantity *
+    rule.laborUnitCost.low *
+    scopeModifier.laborMultiplier *
+    marketFactor.laborMultiplier;
+  const laborMid =
+    quantity *
+    rule.laborUnitCost.mid *
+    scopeModifier.laborMultiplier *
+    marketFactor.laborMultiplier;
+  const laborHigh =
+    quantity *
+    rule.laborUnitCost.high *
+    scopeModifier.laborMultiplier *
+    marketFactor.laborMultiplier;
+
+  const materialLow =
+    quantity *
+    materialUnitCost.low *
+    scopeModifier.materialMultiplier *
+    marketFactor.materialMultiplier;
+  const materialMid =
+    quantity *
+    materialUnitCost.mid *
+    scopeModifier.materialMultiplier *
+    marketFactor.materialMultiplier;
+  const materialHigh =
+    quantity *
+    materialUnitCost.high *
+    scopeModifier.materialMultiplier *
+    marketFactor.materialMultiplier;
+
+  return {
+    low: laborLow + materialLow,
+    mid: laborMid + materialMid,
+    high: laborHigh + materialHigh,
+  };
+}
+
+function createLineItems(
+  input: NormalizedCostInput,
+  complexityFactor: number,
+) {
+  const scopeItems =
+    input.roomTemplate.scopeItemsByRenovationScope[input.renovationScope];
+  const lineItems = scopeItems
+    .map((itemId) => pricingCatalog.scopeItemRules[itemId])
+    .filter((rule) => rule.roomTypes.includes(input.roomType))
+    .map<EstimateLineItem>((rule) => {
+      const subtotal = getLineItemSubtotal(rule, input);
+
+      return {
+        label: rule.label,
+        low: Math.round(subtotal.low),
+        mid: Math.round(subtotal.mid * complexityFactor),
+        high: Math.round(subtotal.high * complexityFactor),
+        explanation: rule.explanation,
+      };
+    });
+
+  const scopeModifier = pricingCatalog.scopeModifiers[input.renovationScope];
+  const subtotal = lineItems.reduce(
+    (totals, item) => ({
+      low: totals.low + item.low,
+      mid: totals.mid + item.mid,
+      high: totals.high + item.high,
+    }),
+    { low: 0, mid: 0, high: 0 },
+  );
+
+  lineItems.push({
+    label: "Planning contingency",
+    low: Math.round(subtotal.low * scopeModifier.contingencyRate),
+    mid: Math.round(subtotal.mid * scopeModifier.contingencyRate),
+    high: Math.round(subtotal.high * scopeModifier.contingencyRate),
+    explanation:
+      "Buffer for unknowns, small scope changes, and pricing variance.",
   });
+
+  return lineItems;
 }
 
 function createAssumptions(input: NormalizedCostInput, complexityFactor: number) {
+  const marketFactor =
+    pricingCatalog.marketFactors[pricingCatalog.defaultMarketFactorId];
+
   return [
     "Estimate is a planning range, not a contractor quote.",
-    "Costs are based on room type, room size, renovation scope, and quality level.",
-    "Room size is treated as usable floor area in square meters.",
-    "Pricing assumes no major structural repairs unless full scope is selected.",
+    "Costs are built from category line items with separate labor and material allowances.",
+    "Room templates determine which scope items are included for the selected room and scope.",
+    "Quality level affects material allowances more than labor.",
+    `Market factor applied: ${marketFactor.label}.`,
+    `Pricing catalog version: ${pricingCatalog.catalogVersion}.`,
     `Complexity factor applied: ${complexityFactor.toFixed(2)}.`,
     ...input.usedFallbacks,
     input.renovationScope === "full"
@@ -346,16 +324,7 @@ function calculateCostEstimate(input: CostInput): RenovationEstimate {
   const normalizedInput = normalizeInput(input);
   const complexityFactor = getComplexityFactor(normalizedInput);
   const confidence = getConfidence(normalizedInput);
-
-  const midBeforeRange =
-    normalizedInput.roomSizeM2 *
-    costPerM2ByRoomType[normalizedInput.roomType] *
-    scopeMultipliers[normalizedInput.renovationScope] *
-    qualityMultipliers[normalizedInput.qualityLevel] *
-    complexityFactor;
-
-  const midTotal = Math.round(midBeforeRange);
-  const lineItems = createLineItems(midTotal, normalizedInput);
+  const lineItems = createLineItems(normalizedInput, complexityFactor);
 
   return {
     engineVersion: "v1",
@@ -364,7 +333,7 @@ function calculateCostEstimate(input: CostInput): RenovationEstimate {
     highTotal: lineItems.reduce((sum, item) => sum + item.high, 0),
     lineItems,
     assumptions: createAssumptions(normalizedInput, complexityFactor),
-    exclusions,
+    exclusions: pricingCatalog.exclusions,
     confidenceScore: confidence.score,
     confidenceReasons: confidence.reasons,
   };
@@ -389,10 +358,13 @@ export function calculateEstimate(project: ProjectSession): RenovationEstimate {
 }
 
 export function getEstimateInputSummary(answers: WizardAnswers) {
+  const roomType = answers.roomType;
+  const roomTemplate = getRoomTemplate(roomType);
+
   return {
-    roomType: answers.roomType.replace("-", " "),
-    roomSize: `${answers.roomSizeM2 ?? defaultRoomSizeM2} m2`,
-    renovationScope: answers.renovationScope ?? defaultRenovationScope,
-    qualityLevel: answers.qualityLevel ?? defaultQualityLevel,
+    roomType: roomType.replace("-", " "),
+    roomSize: `${answers.roomSizeM2 ?? roomTemplate.defaultRoomSizeM2} m2`,
+    renovationScope: answers.renovationScope ?? pricingCatalog.defaultRenovationScope,
+    qualityLevel: answers.qualityLevel ?? pricingCatalog.defaultQualityLevel,
   };
 }
