@@ -92,11 +92,36 @@ export default function ProjectDetailPage() {
             <p className="mt-2 text-sm text-zinc-600">
               Mid estimate: ${midEstimate?.toLocaleString()} - Confidence: {savedEstimate.confidenceScore ?? "not scored"}
             </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Engine version: {savedEstimate.engineVersion ?? "legacy"}
+            </p>
             <ul className="mt-4 space-y-2 text-sm text-zinc-600">
               {savedEstimate.lineItems.map((item) => (
                 <li key={item.label}>
                   {item.label}: ${item.low.toLocaleString()} - ${item.high.toLocaleString()}
                 </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {savedEstimate?.assumptions?.length ? (
+          <section className="rounded-lg border border-zinc-200 p-6">
+            <h2 className="text-xl font-semibold text-zinc-950">Assumptions</h2>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
+              {savedEstimate.assumptions.map((assumption) => (
+                <li key={assumption}>{assumption}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {savedEstimate?.exclusions?.length ? (
+          <section className="rounded-lg border border-zinc-200 p-6">
+            <h2 className="text-xl font-semibold text-zinc-950">Exclusions</h2>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-600">
+              {savedEstimate.exclusions.map((exclusion) => (
+                <li key={exclusion}>{exclusion}</li>
               ))}
             </ul>
           </section>

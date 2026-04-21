@@ -36,9 +36,14 @@ export default function ProjectsPage() {
                 </p>
               </div>
               {project.estimate ? (
-                <p className="text-sm font-medium text-zinc-900">
-                  ${project.estimate.lowTotal.toLocaleString()} - ${project.estimate.highTotal.toLocaleString()}
-                </p>
+                <div className="text-sm text-zinc-700 sm:text-right">
+                  <p className="font-medium text-zinc-900">
+                    ${project.estimate.lowTotal.toLocaleString()} - ${project.estimate.highTotal.toLocaleString()}
+                  </p>
+                  <p className="mt-1">
+                    Mid ${project.estimate.midTotal.toLocaleString()} - Confidence {project.estimate.confidenceScore}/100
+                  </p>
+                </div>
               ) : null}
             </div>
           </Link>
