@@ -2,26 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
-import {
-  createMockProject,
-  getProjectById,
-} from "@/features/projects/local-projects";
-import type { ProjectSession } from "@/features/projects/types";
+import { useProjectForDisplay } from "@/features/projects/use-local-projects";
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
-  const [project] = useState<ProjectSession | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const projectId = params.projectId;
-
-    return projectId === "sample-project"
-      ? createMockProject()
-      : getProjectById(projectId) ?? null;
-  });
+  const project = useProjectForDisplay(params.projectId);
 
   if (!project) {
     return (

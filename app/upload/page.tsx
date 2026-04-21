@@ -1,29 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   addMockRoomImage,
   ensureDraftProject,
   getDraftProject,
 } from "@/features/projects/local-projects";
-import type { ProjectSession } from "@/features/projects/types";
+import { useDraftProject } from "@/features/projects/use-local-projects";
 
 export default function UploadPage() {
   const router = useRouter();
-  const [project, setProject] = useState<ProjectSession | null>(() =>
-    typeof window === "undefined" ? null : ensureDraftProject(),
-  );
+  const project = useDraftProject();
 
   function handleAddRoomPhoto() {
-    setProject(addMockRoomImage("Room photo"));
+    addMockRoomImage("Room photo");
   }
 
   function handleContinue() {
     const draft = getDraftProject() ?? ensureDraftProject();
 
     if (draft.uploadedImages.length === 0) {
-      setProject(addMockRoomImage("Room photo"));
+      addMockRoomImage("Room photo");
     }
 
     router.push("/style");

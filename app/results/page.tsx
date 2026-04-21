@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { calculateEstimate } from "@/features/estimation/calculate-estimate";
 import {
-  ensureDraftProject,
   saveProjectFromDraft,
 } from "@/features/projects/local-projects";
-import type { ProjectSession } from "@/features/projects/types";
+import { useDraftProject } from "@/features/projects/use-local-projects";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -18,9 +16,7 @@ const currency = new Intl.NumberFormat("en-US", {
 
 export default function ResultsPage() {
   const router = useRouter();
-  const [project] = useState<ProjectSession | null>(() =>
-    typeof window === "undefined" ? null : ensureDraftProject(),
-  );
+  const project = useDraftProject();
 
   function handleSaveProject() {
     const savedProject = saveProjectFromDraft();

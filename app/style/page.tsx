@@ -2,10 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { renovationStyles } from "@/data/renovation-styles";
-import { updateDraftProject } from "@/features/projects/local-projects";
+import {
+  ensureDraftProject,
+  updateDraftProject,
+} from "@/features/projects/local-projects";
+import { useDraftProject } from "@/features/projects/use-local-projects";
 
 export default function StylePage() {
   const router = useRouter();
+  const project = useDraftProject();
 
   function handleSelectStyle(styleId: string) {
     const selectedStyle = renovationStyles.find((style) => style.id === styleId);
@@ -14,6 +19,7 @@ export default function StylePage() {
       return;
     }
 
+    ensureDraftProject();
     updateDraftProject({ selectedStyle });
     router.push("/wizard");
   }
@@ -29,6 +35,12 @@ export default function StylePage() {
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
         Pick one simple direction for the project. This stays local in the browser.
       </p>
+      {project?.uploadedImages.length ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          Draft has {project.uploadedImages.length} mock photo
+          {project.uploadedImages.length === 1 ? "" : "s"}.
+        </p>
+      ) : null}
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {renovationStyles.map((style) => (

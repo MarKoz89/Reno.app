@@ -1,14 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { getProjectsForDisplay } from "@/features/projects/local-projects";
-import type { ProjectSession } from "@/features/projects/types";
+import { useProjectsForDisplay } from "@/features/projects/use-local-projects";
 
 export default function ProjectsPage() {
-  const [projects] = useState<ProjectSession[]>(() =>
-    typeof window === "undefined" ? [] : getProjectsForDisplay(),
-  );
+  const projects = useProjectsForDisplay();
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center px-6 py-16">
@@ -35,7 +31,7 @@ export default function ProjectsPage() {
                   {project.name}
                 </h2>
                 <p className="mt-1 text-sm text-zinc-600">
-                  {project.selectedStyle?.name ?? "No style selected"} · {project.uploadedImages.length} photo
+                  {project.selectedStyle?.name ?? "No style selected"} - {project.uploadedImages.length} photo
                   {project.uploadedImages.length === 1 ? "" : "s"}
                 </p>
               </div>

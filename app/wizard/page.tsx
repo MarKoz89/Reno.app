@@ -3,11 +3,16 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { scopeOptions } from "@/features/estimation/calculate-estimate";
-import { updateWizardAnswers } from "@/features/projects/local-projects";
+import {
+  ensureDraftProject,
+  updateWizardAnswers,
+} from "@/features/projects/local-projects";
+import { useDraftProject } from "@/features/projects/use-local-projects";
 import type { RoomType, WizardAnswers } from "@/features/projects/types";
 
 export default function WizardPage() {
   const router = useRouter();
+  const project = useDraftProject();
   const [scopeItems, setScopeItems] = useState<string[]>(["paint"]);
 
   function toggleScope(scopeId: string) {
@@ -32,6 +37,7 @@ export default function WizardPage() {
       notes: String(form.get("notes") ?? ""),
     };
 
+    ensureDraftProject();
     updateWizardAnswers(answers);
     router.push("/results");
   }
@@ -47,6 +53,11 @@ export default function WizardPage() {
       <p className="mt-4 text-base leading-7 text-zinc-600">
         Answer a few practical questions to create a local mock estimate.
       </p>
+      {project?.selectedStyle ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          Selected style: {project.selectedStyle.name}
+        </p>
+      ) : null}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <label className="block">

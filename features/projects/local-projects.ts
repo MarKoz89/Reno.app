@@ -8,6 +8,7 @@ import type {
 
 const draftKey = "reno-app:draft-project";
 const projectsKey = "reno-app:saved-projects";
+const projectStorageEvent = "reno-app:project-storage-changed";
 
 function now() {
   return new Date().toISOString();
@@ -41,6 +42,21 @@ function writeJson<T>(key: string, value: T) {
   }
 
   window.localStorage.setItem(key, JSON.stringify(value));
+  window.dispatchEvent(new Event(projectStorageEvent));
+}
+
+export function subscribeToProjectStorage(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(projectStorageEvent, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(projectStorageEvent, onStoreChange);
+  };
 }
 
 export function createDraftProject(): ProjectSession {
@@ -187,3 +203,10 @@ export function getProjectsForDisplay() {
   return [createMockProject()];
 }
 
+export function getProjectForDisplayById(projectId: string) {
+  if (projectId === "sample-project") {
+    return createMockProject();
+  }
+
+  return getProjectById(projectId) ?? null;
+}
