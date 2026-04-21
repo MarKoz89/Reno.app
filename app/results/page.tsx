@@ -255,6 +255,21 @@ export default function ResultsPage() {
             </p>
           </section>
 
+          <section className="rounded-lg border border-zinc-200 p-6">
+            <h2 className="text-base font-semibold text-zinc-950">
+              Want a cleaner planning packet?
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
+              Premium planning tools may help organize this estimate into a scope summary, budget-risk review, checklist, and contractor questions. Your deterministic estimate stays available for free and does not change.
+            </p>
+            <Link
+              href="/premium"
+              className="mt-4 inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
+            >
+              See Premium
+            </Link>
+          </section>
+
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"

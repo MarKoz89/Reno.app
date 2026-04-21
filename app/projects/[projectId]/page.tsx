@@ -158,6 +158,27 @@ export default function ProjectDetailPage() {
             </ul>
           </section>
         ) : null}
+
+        <section className="rounded-lg border border-zinc-200 p-6">
+          <h2 className="text-xl font-semibold text-zinc-950">
+            Premium project packet
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            Premium may help turn this saved renovation into a clearer planning packet. Your saved estimate and project details remain available for free.
+          </p>
+          <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
+            <li>Printable renovation brief</li>
+            <li>Decision checklist</li>
+            <li>Contractor question list</li>
+            <li>Room-by-room planning notes</li>
+          </ul>
+          <Link
+            href="/premium"
+            className="mt-4 inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
+          >
+            Preview Premium
+          </Link>
+        </section>
       </div>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
