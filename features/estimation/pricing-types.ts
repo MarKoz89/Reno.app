@@ -9,13 +9,19 @@ export type ScopeItemId =
   | "removal-disposal"
   | "paint-wall-prep"
   | "flooring"
+  | "trim-finishing"
   | "lighting"
-  | "fixtures-hardware"
+  | "general-fixtures-hardware"
+  | "bathroom-fixtures"
+  | "kitchen-fixtures"
   | "cabinets-storage"
   | "countertops"
+  | "appliance-allowance"
   | "backsplash"
-  | "tile-waterproofing"
-  | "plumbing-electrical-allowance";
+  | "tiling"
+  | "waterproofing"
+  | "plumbing-installation-allowance"
+  | "electrical-installation-allowance";
 
 export type EstimateCategory =
   | "preparation"
@@ -81,7 +87,7 @@ export type MarketFactor = {
 
 export type PricingCatalog = {
   catalogVersion: string;
-  currency: "USD";
+  currency: "USD" | "CZK";
   defaultRoomType: RoomType;
   defaultRenovationScope: RenovationScope;
   defaultQualityLevel: QualityLevel;
