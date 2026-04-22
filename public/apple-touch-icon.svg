@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="Reno App">
+  <rect width="180" height="180" rx="40" fill="#111111"/>
+  <path d="M45 105 90 66l45 39v36H45z" fill="#ffffff"/>
+  <path d="M63 98h54v43H63z" fill="#e4e4e7"/>
+  <path d="M77 113h27v28H77z" fill="#111111"/>
+  <path d="M40 106 90 62l50 44" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
