@@ -35,6 +35,7 @@ type PlanningInsightsResponse =
   | {
       ok: false;
       error?: {
+        code?: string;
         message?: string;
       };
     };
@@ -86,6 +87,65 @@ function formatDate(value: string, language: "en" | "cs") {
   }).format(new Date(value));
 }
 
+function getMappedText(value: string, map: Record<string, string>) {
+  return map[value] ?? value;
+}
+
+function localizeAssumption(
+  assumption: string,
+  text: ReturnType<typeof getDictionary>,
+) {
+  const assumptionText = text.estimateDomain.assumptions;
+  const exact = getMappedText(assumption, assumptionText.exact);
+  const roomSizeMatch = assumption.match(
+    /^Room size was missing, so a (\d+(?:\.\d+)?) m2 planning size was used\.$/,
+  );
+  const marketFactorMatch = assumption.match(/^Market factor applied: (.+)\.$/);
+  const catalogVersionMatch = assumption.match(
+    /^Pricing catalog version: (.+)\.$/,
+  );
+  const complexityFactorMatch = assumption.match(
+    /^Complexity factor applied: (.+)\.$/,
+  );
+
+  if (exact !== assumption) {
+    return exact;
+  }
+
+  if (roomSizeMatch) {
+    return assumptionText.roomSizeFallback(Number(roomSizeMatch[1]));
+  }
+
+  if (marketFactorMatch) {
+    return assumptionText.marketFactor(marketFactorMatch[1]);
+  }
+
+  if (catalogVersionMatch) {
+    return assumptionText.catalogVersion(catalogVersionMatch[1]);
+  }
+
+  if (complexityFactorMatch) {
+    return assumptionText.complexityFactor(complexityFactorMatch[1]);
+  }
+
+  return assumption;
+}
+
+function getPlanningErrorMessage(
+  data: PlanningInsightsResponse,
+  text: ReturnType<typeof getDictionary>,
+) {
+  if (data.ok) {
+    return text.report.planningInsightsUnavailable;
+  }
+
+  const code = data.error?.code;
+
+  return code
+    ? getMappedText(code, text.estimateDomain.apiErrors.planning)
+    : data.error?.message ?? text.report.planningInsightsUnavailable;
+}
+
 function PlanningInsightsSection({ project }: { project: ProjectSession }) {
   const { language } = usePreferences();
   const text = getDictionary(language);
@@ -114,8 +174,17 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
       renovationScope,
       qualityLevel,
       notes,
+      language,
     };
-  }, [notes, qualityLevel, renovationScope, roomSizeM2, roomType, styleId]);
+  }, [
+    language,
+    notes,
+    qualityLevel,
+    renovationScope,
+    roomSizeM2,
+    roomType,
+    styleId,
+  ]);
   const [status, setStatus] = useState<PlanningInsightsStatus>("idle");
   const [insights, setInsights] = useState<PlanningInsights | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -146,11 +215,9 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
           const data = (await response.json()) as PlanningInsightsResponse;
 
           if (!response.ok || !data.ok) {
-            throw new Error(
-              !data.ok
-                ? data.error?.message
-                : text.report.planningInsightsUnavailable,
-            );
+            setStatus("error");
+            setErrorMessage(getPlanningErrorMessage(data, text));
+            return;
           }
 
           setInsights({
@@ -273,6 +340,12 @@ export function ReportPageClient() {
   );
   const answers = project?.wizardAnswers;
   const inputSummary = answers ? getEstimateInputSummary(answers) : undefined;
+  const localizedScope = answers?.renovationScope
+    ? text.wizard.scopeOptions[answers.renovationScope]
+    : inputSummary?.renovationScope;
+  const localizedQuality = answers?.qualityLevel
+    ? text.wizard.qualityOptions[answers.qualityLevel]
+    : inputSummary?.qualityLevel;
 
   if (!project) {
     return (
@@ -353,13 +426,13 @@ export function ReportPageClient() {
             <div>
               <dt className="font-medium text-zinc-900">{text.common.scope}</dt>
               <dd className="mt-1 text-zinc-600">
-                {inputSummary?.renovationScope ?? text.common.notSelected}
+                {localizedScope ?? text.common.notSelected}
               </dd>
             </div>
             <div>
               <dt className="font-medium text-zinc-900">{text.common.quality}</dt>
               <dd className="mt-1 text-zinc-600">
-                {inputSummary?.qualityLevel ?? text.common.notSelected}
+                {localizedQuality ?? text.common.notSelected}
               </dd>
             </div>
             <div>
@@ -461,7 +534,10 @@ export function ReportPageClient() {
                   <div key={item.label} className="py-4">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                       <h3 className="font-medium text-zinc-950">
-                        {item.label}
+                        {getMappedText(
+                          item.label,
+                          text.estimateDomain.lineItemLabels,
+                        )}
                       </h3>
                       <p className="text-sm font-medium text-zinc-900">
                         {formatCurrency(item.low, currency)} -{" "}
@@ -469,7 +545,11 @@ export function ReportPageClient() {
                       </p>
                     </div>
                     <p className="mt-1 text-sm leading-6 text-zinc-600">
-                      {text.common.midLabel}: {formatCurrency(item.mid, currency)}. {item.explanation}
+                      {text.common.midLabel}: {formatCurrency(item.mid, currency)}.{" "}
+                      {getMappedText(
+                        item.explanation,
+                        text.estimateDomain.lineItemExplanations,
+                      )}
                     </p>
                   </div>
                 ))}
@@ -487,7 +567,7 @@ export function ReportPageClient() {
                       key={assumption}
                       className="border-l-2 border-zinc-200 pl-3"
                     >
-                      {assumption}
+                      {localizeAssumption(assumption, text)}
                     </li>
                   ))}
                 </ul>
@@ -503,7 +583,7 @@ export function ReportPageClient() {
                       key={exclusion}
                       className="border-l-2 border-zinc-300 pl-3"
                     >
-                      {exclusion}
+                      {getMappedText(exclusion, text.estimateDomain.exclusions)}
                     </li>
                   ))}
                 </ul>

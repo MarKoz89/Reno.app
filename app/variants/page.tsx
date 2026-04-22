@@ -25,6 +25,7 @@ type RedesignResponse =
   | {
       ok: false;
       error?: {
+        code?: string;
         message?: string;
         retryable?: boolean;
       };
@@ -45,6 +46,25 @@ function hasUsableVariantImage(variant: RedesignVariant) {
     variant.imageUrl.startsWith("https://") ||
     variant.imageUrl.startsWith("http://")
   );
+}
+
+function getMappedText(value: string, map: Record<string, string>) {
+  return map[value] ?? value;
+}
+
+function getRedesignErrorMessage(
+  data: RedesignResponse,
+  text: ReturnType<typeof getDictionary>,
+) {
+  if (data.ok) {
+    return text.variants.unavailableFallback;
+  }
+
+  const code = data.error?.code;
+
+  return code
+    ? getMappedText(code, text.estimateDomain.apiErrors.redesign)
+    : data.error?.message ?? text.variants.unavailableFallback;
 }
 
 export default function VariantsPage() {
@@ -116,11 +136,7 @@ export default function VariantsPage() {
           if (!response.ok || !data.ok) {
             setStatus("error");
             setCanRetry(!data.ok ? Boolean(data.error?.retryable) : true);
-            setErrorMessage(
-              !data.ok
-                ? data.error?.message ?? unavailableFallbackMessage
-                : unavailableFallbackMessage,
-            );
+            setErrorMessage(getRedesignErrorMessage(data, text));
             return;
           }
 
@@ -162,6 +178,7 @@ export default function VariantsPage() {
     sourceImageFileName,
     retryNonce,
     missingPhotoMessage,
+    text,
     unavailableFallbackMessage,
     emptyVariantsMessage,
   ]);

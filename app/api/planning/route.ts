@@ -22,6 +22,7 @@ type PlanningRequest = {
   renovationScope?: unknown;
   qualityLevel?: unknown;
   notes?: unknown;
+  language?: unknown;
 };
 
 type NormalizedPlanningRequest = {
@@ -31,6 +32,7 @@ type NormalizedPlanningRequest = {
   renovationScope: RenovationScope;
   qualityLevel: QualityLevel;
   notes: string;
+  language: "en" | "cs";
 };
 
 type PlanningOutput = {
@@ -126,6 +128,7 @@ function normalizeRequest(input: PlanningRequest) {
     input.roomSizeM2 > 0
       ? input.roomSizeM2
       : undefined;
+  const language = input.language === "cs" ? "cs" : "en";
 
   return {
     styleId: input.styleId,
@@ -134,6 +137,7 @@ function normalizeRequest(input: PlanningRequest) {
     renovationScope: input.renovationScope,
     qualityLevel: input.qualityLevel,
     notes: typeof input.notes === "string" ? input.notes.slice(0, 1200) : "",
+    language,
   } satisfies NormalizedPlanningRequest;
 }
 
@@ -195,6 +199,9 @@ function buildPrompt({
     "Recommendations should be practical priorities for planning and decision-making.",
     "Contractor questions should clarify scope, site conditions, materials, sequencing, permits, or constraints without asking for prices.",
     "Risks should be phrased as things to confirm early, not guarantees or code, safety, permit, structural, electrical, plumbing, or HVAC certainty.",
+    input.language === "cs"
+      ? "Respond in Czech. Use clear homeowner language."
+      : "Respond in English. Use clear homeowner language.",
     `Selected style: ${style.name}. ${style.description}`,
     `Room type: ${input.roomType}.`,
     `Room size: ${input.roomSizeM2 ? `${input.roomSizeM2} m2` : "not provided"}.`,
