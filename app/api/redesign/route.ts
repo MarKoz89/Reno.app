@@ -80,6 +80,47 @@ function buildPrompt(style: { name: string; description: string }) {
   ].join(" ");
 }
 
+function isUsableImageUrl(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmedValue = value.trim();
+
+  return (
+    trimmedValue.startsWith("data:image/") ||
+    trimmedValue.startsWith("https://") ||
+    trimmedValue.startsWith("http://")
+  );
+}
+
+function isUsableBase64Image(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function getImageUrlsFromPayload(payload: OpenAIImageResponse, count: number) {
+  if (!Array.isArray(payload.data)) {
+    return [];
+  }
+
+  return payload.data
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return undefined;
+      }
+
+      const imageItem = item as { b64_json?: unknown; url?: unknown };
+
+      if (isUsableBase64Image(imageItem.b64_json)) {
+        return `data:image/png;base64,${imageItem.b64_json.trim()}`;
+      }
+
+      return imageItem.url;
+    })
+    .filter(isUsableImageUrl)
+    .slice(0, count);
+}
+
 async function postToImageProvider({
   apiKey,
   body,
@@ -232,22 +273,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const imageUrls =
-    payload.data
-      ?.map((item) => {
-        if (item.b64_json) {
-          return `data:image/png;base64,${item.b64_json}`;
-        }
-
-        return item.url;
-      })
-      .filter((url): url is string => Boolean(url))
-      .slice(0, count) ?? [];
+  const imageUrls = getImageUrlsFromPayload(payload, count);
 
   if (imageUrls.length === 0) {
     return jsonError(
       "AI_PROVIDER_ERROR",
-      "AI redesign generation did not return any images.",
+      "AI redesign generation returned no usable image. Try again.",
       502,
       true,
     );

@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ensureDraftProject, updateDraftProject } from "@/features/projects/local-projects";
+import {
+  ensureDraftProject,
+  updateDraftProject,
+} from "@/features/projects/local-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
 import type { RedesignVariant } from "@/features/projects/types";
 import { getDictionary } from "@/features/ui/dictionary";
@@ -23,6 +26,7 @@ type RedesignResponse =
       ok: false;
       error?: {
         message?: string;
+        retryable?: boolean;
       };
     };
 
@@ -33,6 +37,14 @@ async function dataUrlToFile(dataUrl: string, fileName: string) {
   return new File([blob], fileName, {
     type: blob.type || "image/png",
   });
+}
+
+function hasUsableVariantImage(variant: RedesignVariant) {
+  return (
+    variant.imageUrl.startsWith("data:image/") ||
+    variant.imageUrl.startsWith("https://") ||
+    variant.imageUrl.startsWith("http://")
+  );
 }
 
 export default function VariantsPage() {
@@ -53,9 +65,12 @@ export default function VariantsPage() {
   const missingPhotoMessage = text.variants.missingPhoto;
   const unavailableFallbackMessage = text.variants.unavailableFallback;
   const emptyVariantsMessage = text.variants.empty;
+  const retryLabel = language === "cs" ? "Zkusit znovu" : "Try again";
   const [status, setStatus] = useState<RedesignStatus>("idle");
   const [variants, setVariants] = useState<RedesignVariant[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -64,6 +79,7 @@ export default function VariantsPage() {
         if (!selectedStyleId || !selectedStyleName) {
           setStatus("idle");
           setVariants([]);
+          setCanRetry(false);
           return;
         }
 
@@ -71,11 +87,13 @@ export default function VariantsPage() {
           setStatus("error");
           setVariants([]);
           setErrorMessage(missingPhotoMessage);
+          setCanRetry(false);
           return;
         }
 
         setStatus("loading");
         setErrorMessage(null);
+        setCanRetry(false);
         setVariants([]);
 
         try {
@@ -96,24 +114,31 @@ export default function VariantsPage() {
           const data = (await response.json()) as RedesignResponse;
 
           if (!response.ok || !data.ok) {
-            throw new Error(
+            setStatus("error");
+            setCanRetry(!data.ok ? Boolean(data.error?.retryable) : true);
+            setErrorMessage(
               !data.ok
-                ? data.error?.message
+                ? data.error?.message ?? unavailableFallbackMessage
                 : unavailableFallbackMessage,
             );
+            return;
           }
 
-          const generatedVariants = data.variants.slice(0, 3);
+          const generatedVariants = Array.isArray(data.variants)
+            ? data.variants.filter(hasUsableVariantImage).slice(0, 3)
+            : [];
 
           setVariants(generatedVariants);
           setStatus(generatedVariants.length > 0 ? "ready" : "error");
 
           if (generatedVariants.length === 0) {
             setErrorMessage(emptyVariantsMessage);
+            setCanRetry(true);
           }
         } catch (error) {
           if (!signal.aborted) {
             setStatus("error");
+            setCanRetry(Boolean(sourceImageDataUrl && selectedStyleId));
             setErrorMessage(
               error instanceof Error
                 ? error.message
@@ -135,6 +160,7 @@ export default function VariantsPage() {
     selectedStyleName,
     sourceImageDataUrl,
     sourceImageFileName,
+    retryNonce,
     missingPhotoMessage,
     unavailableFallbackMessage,
     emptyVariantsMessage,
@@ -143,6 +169,10 @@ export default function VariantsPage() {
   function handleSelectVariant(variant: RedesignVariant) {
     ensureDraftProject();
     updateDraftProject({ selectedRedesignVariant: variant });
+  }
+
+  function handleRetry() {
+    setRetryNonce((currentRetryNonce) => currentRetryNonce + 1);
   }
 
   function handleContinue() {
@@ -197,13 +227,24 @@ export default function VariantsPage() {
           <p className="mt-2 text-sm leading-6 text-zinc-600">
             {errorMessage ?? text.variants.unavailableFallback}
           </p>
-          <button
-            type="button"
-            onClick={() => router.push("/upload")}
-            className="mt-4 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
-          >
-            {text.common.backToUpload}
-          </button>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            {canRetry ? (
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
+              >
+                {retryLabel}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => router.push("/upload")}
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
+            >
+              {text.common.backToUpload}
+            </button>
+          </div>
         </div>
       ) : null}
 
