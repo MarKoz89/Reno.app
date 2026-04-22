@@ -70,7 +70,7 @@ export const dictionary = {
       },
     },
     variants: {
-      title: "Choose a design direction",
+      title: "Your redesign suggestion",
       body: "Generate AI redesign options from your current room photo and pick one for inspiration. This does not affect the estimate.",
       basedOnStyle: (styleName: string) => `Based on your selected style: ${styleName}`,
       missingPhoto: "Add a room photo before generating redesign ideas.",
@@ -474,7 +474,7 @@ export const dictionary = {
       },
     },
     variants: {
-      title: "Vyberte směr návrhu",
+      title: "Váš návrh úpravy",
       body: "Vytvoříme návrh úpravy podle aktuální fotky a vybraného stylu. Slouží jako inspirace, ne jako cenová nabídka.",
       basedOnStyle: (styleName: string) => `Podle vybraného stylu: ${styleName}`,
       missingPhoto: "Nejdřív nahrajte fotku místnosti.",

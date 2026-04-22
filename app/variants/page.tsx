@@ -91,6 +91,7 @@ export default function VariantsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,7 +142,7 @@ export default function VariantsPage() {
           }
 
           const generatedVariants = Array.isArray(data.variants)
-            ? data.variants.filter(hasUsableVariantImage).slice(0, 3)
+            ? data.variants.filter(hasUsableVariantImage).slice(0, 1)
             : [];
 
           setVariants(generatedVariants);
@@ -188,6 +189,12 @@ export default function VariantsPage() {
     updateDraftProject({ selectedRedesignVariant: variant });
   }
 
+  useEffect(() => {
+    if (status === "ready" && variants.length === 1 && !selectedVariantId) {
+      handleSelectVariant(variants[0]);
+    }
+  }, [selectedVariantId, status, variants]);
+
   function handleRetry() {
     setRetryNonce((currentRetryNonce) => currentRetryNonce + 1);
   }
@@ -201,6 +208,7 @@ export default function VariantsPage() {
   }
 
   return (
+    <>
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
         {text.common.step(3)}
@@ -219,7 +227,7 @@ export default function VariantsPage() {
 
       {status === "loading" ? (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((item) => (
+          {[1].map((item) => (
             <div
               key={item}
               className="rounded-lg border border-zinc-200 p-5"
@@ -274,19 +282,33 @@ export default function VariantsPage() {
               <button
                 type="button"
                 key={variant.id}
-                onClick={() => handleSelectVariant(variant)}
-                className={`overflow-hidden rounded-lg border text-left transition ${
+                onClick={() => {
+                  console.log("variant clicked", variant.id);
+                  handleSelectVariant(variant);
+                }}
+                className={`touch-manipulation overflow-hidden rounded-lg border text-left transition active:scale-95 ${
                   isSelected
-                    ? "border-zinc-950 ring-2 ring-zinc-950"
+                    ? "border-zinc-950 ring-2 ring-black"
                     : "border-zinc-200 hover:border-zinc-400"
                 }`}
               >
                 <div
-                  aria-label={text.variants.previewLabel(variant.title)}
-                  className="aspect-[4/3] w-full bg-cover bg-center"
-                  role="img"
-                  style={{ backgroundImage: `url(${variant.imageUrl})` }}
-                />
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setPreviewImage(variant.imageUrl);
+                  }}
+                  className="cursor-zoom-in"
+                >
+                  <div
+                    aria-label={text.variants.previewLabel(variant.title)}
+                    className="aspect-[4/3] w-full bg-cover bg-center"
+                    role="img"
+                    style={{
+                      backgroundImage: `url(${variant.imageUrl})`,
+                      pointerEvents: "none",
+                    }}
+                  />
+                </div>
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -334,5 +356,19 @@ export default function VariantsPage() {
         </button>
       </div>
     </main>
+    {previewImage ? (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        onClick={() => setPreviewImage(null)}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={previewImage}
+          alt="Preview"
+          className="max-h-[90%] max-w-[90%] rounded-lg"
+        />
+      </div>
+    ) : null}
+    </>
   );
 }

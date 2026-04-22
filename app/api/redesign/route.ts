@@ -58,24 +58,18 @@ function clampCount(value: FormDataEntryValue | null) {
 
 function buildPrompt(style: { name: string; description: string }) {
   return [
-    `Edit the provided room photo into a realistic residential renovation preview using the selected style: ${style.name}.`,
+    `Edit the provided room photo into one realistic renovation suggestion using the selected style: ${style.name}.`,
     `Style grounding: ${style.description}`,
-    "The selected style should guide colors, finishes, fixtures, and decor, but realism and the original room structure are more important than dramatic style expression.",
-    "Style should influence details, not override realism.",
-    "Preserve the original room exactly: keep the same layout, camera angle, perspective, wall positions, ceiling height, floor footprint, room size, doors, windows, openings, stairs, built-ins, plumbing locations, and major architectural features.",
-    "Lighting direction, shadows, and perspective must match the original image.",
-    "Do not move walls, change the layout, change the camera angle, add new windows or doors, remove existing windows or doors, change the room size, invent adjacent rooms, or alter structural-looking elements.",
-    "Do not change the position of light sources or windows.",
-    "Only make plausible renovation changes to visible finishes and replaceable elements: paint or wall finish, flooring, lighting fixtures, cabinets, vanities, counters, backsplash, furniture, curtains, rugs, decorations, hardware, faucets, sinks, mirrors, and other non-structural fixtures.",
-    "The result must look like a real photograph, not a render, mockup, visualization, catalog image, or advertisement.",
+    "The result must look like a real photo of the same room after a normal renovation, not a render, visualization, catalog image, advertisement, or AI concept image.",
+    "Keep the room clearly recognizable as the same space. Preserve the original layout, room proportions, camera angle, perspective, wall positions, ceiling height, floor footprint, doors, windows, openings, stairs, built-ins, plumbing locations, light direction, shadows, and major architectural elements.",
+    "Do not improve or redesign the architecture itself. Do not reinterpret the room layout, move walls, change perspective, add or remove windows or doors, change room size, invent adjacent rooms, or alter structural-looking elements.",
+    "Only make realistic renovation changes a homeowner could actually implement: paint or wall finish, surfaces, flooring, lighting fixtures, cabinets, vanities, counters, backsplash, trim, furniture, curtains, rugs, textiles, decor, hardware, faucets, sinks, mirrors, and other replaceable non-structural fixtures.",
+    "Style should guide the finish language, colors, materials, fixtures, and decor tone, but realism is more important than dramatic style expression. Style should be visible but subtle and practical.",
     "Use real-world materials, believable colors, correct scale, natural proportions, practical lighting, and normal residential installation quality.",
-    "Use natural lighting consistent with the original photo, and preserve imperfections typical for real homes.",
-    "Keep the design conservative and useful for a homeowner planning a real renovation; avoid excessive creativity, luxury exaggeration, dramatic staging, and unrealistic upgrades unless they are clearly appropriate for the selected style.",
-    "Keep the design practical and achievable within a normal renovation budget.",
-    "Avoid fantasy interiors, surreal or conceptual design, impossible lighting, glossy showroom rendering, overdesigned Pinterest-style styling, warped geometry, distorted furniture, fake reflections, cluttered decor, and objects that do not fit the room.",
-    "Avoid perfect symmetry, unrealistic cleanliness, overly staged interiors, overdecorating, and adding too many design elements.",
-    "Do not create a showroom-style interior, staged catalog look, advertisement look, glossy or hyper-polished materials, exaggerated lighting, exaggerated reflections, or dramatic shadows.",
-    "Do not add people, text, labels, captions, signs, logos, watermarks, floor plans, measurements, prices, estimate tables, discounts, feasibility claims, or contractor claims.",
+    "Keep lighting natural and consistent with the original image. Preserve realistic shadows, everyday imperfections, and the lived-in feel of a normal home.",
+    "Keep the design conservative, useful, and achievable within a normal renovation budget. Avoid excessive decoration or luxury elements unless the selected style clearly requires them.",
+    "Negative constraints: no showroom styling, catalog polish, staged luxury presentation, fantasy interiors, surreal design, AI concept art, unreal lighting, excessive symmetry, perfect spotless staging, fake depth, impossible reflections, surreal material shine, glossy hyper-polished materials, warped geometry, distorted furniture, overly curated Pinterest styling, text, labels, logos, watermarks, people, prices, measurements, or contractor claims.",
+    "Do not imply a discount, feasibility claim, construction guarantee, contractor recommendation, or pricing authority.",
     "This is visual inspiration only and must not imply a cost estimate, pricing recommendation, construction feasibility, or project guarantee.",
   ].join(" ");
 }
@@ -273,7 +267,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const imageUrls = getImageUrlsFromPayload(payload, count);
+  const imageUrls = getImageUrlsFromPayload(payload, count).slice(0, 1);
 
   if (imageUrls.length === 0) {
     return jsonError(
