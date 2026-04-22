@@ -108,14 +108,14 @@ function normalizeInput(input: CostInput): NormalizedCostInput {
 function getComplexityFactor(input: NormalizedCostInput) {
   let factor = 1;
 
-  // Kitchens and bathrooms usually carry more trade coordination and fixture risk.
+  // Kitchens and bathrooms usually carry more Czech-market trade coordination and hidden-condition risk.
   if (input.roomType === "kitchen" || input.roomType === "bathroom") {
     factor += 0.08;
   }
 
   // Full renovations have more unknowns than finish-only refreshes.
   if (input.renovationScope === "full") {
-    factor += 0.12;
+    factor += 0.14;
   }
 
   // Sparse notes make the early estimate less specific.
@@ -306,10 +306,15 @@ function createAssumptions(input: NormalizedCostInput, complexityFactor: number)
     pricingCatalog.marketFactors[pricingCatalog.defaultMarketFactorId];
 
   return [
-    "Estimate is a planning range, not a contractor quote.",
+    "Estimate is an early Czech-market planning range, not a contractor quote.",
+    "The catalog is static MVP planning data for Czech renovation structure and does not use live supplier or contractor price feeds.",
     "Costs are built from category line items with separate labor and material allowances.",
     "Room templates determine which scope items are included for the selected room and scope.",
-    "Quality level affects material allowances more than labor.",
+    "Quality level mainly affects visible materials, fixtures, cabinets, countertops, lighting, flooring, and tiling.",
+    "Preparation, demolition, waterproofing, and basic trade materials are treated as lower-variance planning allowances.",
+    "City, supplier, contractor availability, VAT treatment, and final material selection can move the real quote.",
+    "Prague, Brno, and regional differences are not fully modeled yet.",
+    "Hidden substrate, moisture, panelak, older masonry, plumbing, and electrical conditions can significantly affect full renovations.",
     `Market factor applied: ${marketFactor.label}.`,
     `Pricing catalog version: ${pricingCatalog.catalogVersion}.`,
     `Complexity factor applied: ${complexityFactor.toFixed(2)}.`,
