@@ -30,7 +30,7 @@ export function isRoomPhotoError(error: unknown): error is RoomPhotoError {
   return error instanceof RoomPhotoError;
 }
 
-function getDataUrlBytes(dataUrl: string) {
+export function getRoomPhotoDataUrlBytes(dataUrl: string) {
   const base64Payload = dataUrl.split(",", 2)[1] ?? "";
   const padding = base64Payload.endsWith("==")
     ? 2
@@ -125,7 +125,7 @@ export async function createRoomPhotoPreviewDataUrl(file: File) {
     ) {
       const previewDataUrl = canvas.toDataURL("image/jpeg", quality);
 
-      if (getDataUrlBytes(previewDataUrl) <= maxStoredImageBytes) {
+      if (getRoomPhotoDataUrlBytes(previewDataUrl) <= maxStoredImageBytes) {
         return previewDataUrl;
       }
     }
