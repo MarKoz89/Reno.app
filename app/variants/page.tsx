@@ -36,13 +36,24 @@ type RedesignResponse =
 
 const maxRedesignImageBytes = 8 * 1024 * 1024;
 
-async function dataUrlToFile(dataUrl: string, fileName: string) {
-  const response = await fetch(dataUrl);
-  const blob = await response.blob();
+function dataUrlToFile(dataUrl: string, fileName: string) {
+  const [header, base64] = dataUrl.split(",", 2);
 
-  return new File([blob], fileName, {
-    type: blob.type || "image/png",
-  });
+  if (!header || !base64) {
+    throw new Error("Invalid data URL.");
+  }
+
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mime = mimeMatch?.[1] ?? "image/png";
+  const binary = atob(base64);
+  const length = binary.length;
+  const bytes = new Uint8Array(length);
+
+  for (let i = 0; i < length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return new File([bytes], fileName, { type: mime });
 }
 
 function hasUsableVariantImage(variant: RedesignVariant) {
@@ -187,7 +198,7 @@ export default function VariantsPage() {
             return;
           }
 
-          const imageFile = await dataUrlToFile(
+          const imageFile = dataUrlToFile(
             sourceImageDataUrl,
             sourceImageFileName,
           );
