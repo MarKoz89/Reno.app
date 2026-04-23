@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import { PreferencesSwitcher } from "@/features/ui/preferences-switcher";
 import "./globals.css";
@@ -56,11 +57,41 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegistration />
         <header className="border-b border-zinc-200 px-6 py-3">
-          <div className="mx-auto flex w-full max-w-5xl justify-end">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Link
+              href="/"
+              className="text-sm font-semibold tracking-tight text-zinc-950"
+            >
+              Reno App
+            </Link>
+            <nav
+              aria-label="Primary navigation"
+              className="flex flex-wrap items-center gap-4 text-sm font-medium text-zinc-700"
+            >
+              <Link href="/upload" className="hover:text-zinc-950">
+                Start planning
+              </Link>
+              <Link href="/projects" className="hover:text-zinc-950">
+                Saved projects
+              </Link>
+            </nav>
             <PreferencesSwitcher />
           </div>
         </header>
         {children}
+        <footer className="mt-auto border-t border-zinc-200 px-6 py-6">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between">
+            <p>Reno App helps homeowners plan room renovations.</p>
+            <nav
+              aria-label="Footer navigation"
+              className="flex flex-wrap items-center gap-4"
+            >
+              <Link href="/" className="hover:text-zinc-950">
+                Home
+              </Link>
+            </nav>
+          </div>
+        </footer>
       </body>
     </html>
   );
