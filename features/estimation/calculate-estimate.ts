@@ -110,17 +110,12 @@ function getComplexityFactor(input: NormalizedCostInput) {
 
   // Kitchens and bathrooms usually carry more Czech-market trade coordination and hidden-condition risk.
   if (input.roomType === "kitchen" || input.roomType === "bathroom") {
-    factor += 0.08;
+    factor += 0.05;
   }
 
   // Full renovations have more unknowns than finish-only refreshes.
   if (input.renovationScope === "full") {
-    factor += 0.14;
-  }
-
-  // Sparse notes make the early estimate less specific.
-  if (!input.notes.trim()) {
-    factor += 0.05;
+    factor += 0.1;
   }
 
   return Math.min(factor, 1.3);
