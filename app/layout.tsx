@@ -15,14 +15,45 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const seoDescription =
+  "Plan room renovations with a guided AI workflow, style options, and explainable estimates that show assumptions and confidence.";
+
+function getMetadataBase() {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
+
+  try {
+    return new URL(siteUrl);
+  } catch {
+    return new URL("http://localhost:3000");
+  }
+}
+
 export const metadata: Metadata = {
+  metadataBase: getMetadataBase(),
   title: {
-    default: "Reno App",
+    default: "Reno App | AI Renovation Planning and Explainable Estimates",
     template: "%s | Reno App",
   },
-  description: "Plan room renovations with guided steps and explainable estimates.",
+  description: seoDescription,
   applicationName: "Reno App",
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "Reno App | AI Renovation Planning",
+    description: seoDescription,
+    url: "/",
+    siteName: "Reno App",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Reno App | AI Renovation Planning",
+    description: seoDescription,
+  },
   appleWebApp: {
     capable: true,
     title: "Reno App",
