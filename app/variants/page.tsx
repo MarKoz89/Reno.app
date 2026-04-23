@@ -6,6 +6,7 @@ import {
   ensureDraftProject,
   updateDraftProject,
 } from "@/features/projects/local-projects";
+import { getRoomPhotoDataUrlBytes } from "@/features/projects/room-photo";
 import { useDraftProject } from "@/features/projects/use-local-projects";
 import type { RedesignVariant } from "@/features/projects/types";
 import { getDictionary } from "@/features/ui/dictionary";
@@ -20,6 +21,7 @@ type RedesignResponse =
       meta: {
         styleId: string;
         styleName: string;
+        imageBytes?: number;
       };
     }
   | {
@@ -28,8 +30,11 @@ type RedesignResponse =
         code?: string;
         message?: string;
         retryable?: boolean;
+        requestId?: string;
       };
     };
+
+const maxRedesignImageBytes = 8 * 1024 * 1024;
 
 async function dataUrlToFile(dataUrl: string, fileName: string) {
   const response = await fetch(dataUrl);
@@ -67,6 +72,32 @@ function getRedesignErrorMessage(
     : data.error?.message ?? text.variants.unavailableFallback;
 }
 
+function getTransportErrorMessage(
+  text: ReturnType<typeof getDictionary>,
+  language: "en" | "cs",
+) {
+  return language === "cs"
+    ? "Navrh se nepodarilo odeslat. Zkontrolujte pripojeni a zkuste to znovu."
+    : "The redesign request could not be sent. Check your connection and try again.";
+}
+
+async function readRedesignResponse(
+  response: Response,
+): Promise<RedesignResponse> {
+  try {
+    return (await response.json()) as RedesignResponse;
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: "AI_PROVIDER_ERROR",
+        message: "Redesign generation returned an unreadable response.",
+        retryable: true,
+      },
+    };
+  }
+}
+
 export default function VariantsPage() {
   const router = useRouter();
   const project = useDraftProject();
@@ -89,11 +120,18 @@ export default function VariantsPage() {
   const qualityLevel = answers?.qualityLevel;
   const materialPreferences = answers?.materialPreferences ?? "";
   const notes = answers?.notes ?? "";
+  const compressedImageBytes = sourceImageDataUrl
+    ? getRoomPhotoDataUrlBytes(sourceImageDataUrl)
+    : 0;
   const missingPhotoMessage = text.variants.missingPhoto;
   const missingDetailsMessage =
     language === "cs"
       ? "Nejdriv doplnte typ mistnosti, rozsah rekonstrukce a uroven provedeni."
       : "Add room type, renovation scope, and quality level before generating redesign ideas.";
+  const oversizedRequestMessage =
+    language === "cs"
+      ? "Fotka mistnosti je pro AI navrh porad prilis velka. Zkuste mensi nebo mene detailni fotku."
+      : "The room photo is still too large for redesign generation. Try a smaller or less detailed photo.";
   const unavailableFallbackMessage = text.variants.unavailableFallback;
   const emptyVariantsMessage = text.variants.empty;
   const retryLabel = language === "cs" ? "Zkusit znovu" : "Try again";
@@ -141,10 +179,27 @@ export default function VariantsPage() {
         setVariants([]);
 
         try {
+          if (compressedImageBytes > maxRedesignImageBytes) {
+            setStatus("error");
+            setVariants([]);
+            setCanRetry(false);
+            setErrorMessage(oversizedRequestMessage);
+            return;
+          }
+
           const imageFile = await dataUrlToFile(
             sourceImageDataUrl,
             sourceImageFileName,
           );
+
+          if (imageFile.size > maxRedesignImageBytes) {
+            setStatus("error");
+            setVariants([]);
+            setCanRetry(false);
+            setErrorMessage(oversizedRequestMessage);
+            return;
+          }
+
           const formData = new FormData();
           formData.set("image", imageFile);
           formData.set("styleId", selectedStyleId);
@@ -163,7 +218,7 @@ export default function VariantsPage() {
             body: formData,
             signal,
           });
-          const data = (await response.json()) as RedesignResponse;
+          const data = await readRedesignResponse(response);
 
           if (!response.ok || !data.ok) {
             setStatus("error");
@@ -186,11 +241,19 @@ export default function VariantsPage() {
         } catch (error) {
           if (!signal.aborted) {
             setStatus("error");
-            setCanRetry(Boolean(sourceImageDataUrl && selectedStyleId));
+            setCanRetry(
+              Boolean(
+                sourceImageDataUrl &&
+                  selectedStyleId &&
+                  roomType &&
+                  renovationScope &&
+                  qualityLevel,
+              ),
+            );
             setErrorMessage(
-              error instanceof Error
-                ? error.message
-                : unavailableFallbackMessage,
+              error instanceof DOMException && error.name === "AbortError"
+                ? unavailableFallbackMessage
+                : getTransportErrorMessage(text, language),
             );
           }
         }
@@ -215,9 +278,12 @@ export default function VariantsPage() {
     materialPreferences,
     notes,
     retryNonce,
+    compressedImageBytes,
     missingPhotoMessage,
     missingDetailsMessage,
+    oversizedRequestMessage,
     text,
+    language,
     unavailableFallbackMessage,
     emptyVariantsMessage,
   ]);
