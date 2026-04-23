@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import { PreferencesSwitcher } from "@/features/ui/preferences-switcher";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,22 +19,8 @@ const geistMono = Geist_Mono({
 const seoDescription =
   "Plan room renovations with a guided AI workflow, style options, and explainable estimates that show assumptions and confidence.";
 
-function getMetadataBase() {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
-
-  try {
-    return new URL(siteUrl);
-  } catch {
-    return new URL("http://localhost:3000");
-  }
-}
-
 export const metadata: Metadata = {
-  metadataBase: getMetadataBase(),
+  metadataBase: getSiteUrl(),
   title: {
     default: "Reno App | AI Renovation Planning and Explainable Estimates",
     template: "%s | Reno App",
@@ -119,6 +106,9 @@ export default function RootLayout({
             >
               <Link href="/" className="hover:text-zinc-950">
                 Home
+              </Link>
+              <Link href="/privacy" className="hover:text-zinc-950">
+                Privacy
               </Link>
             </nav>
           </div>

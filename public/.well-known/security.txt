@@ -1,0 +1,10 @@
+Contact: mailto:security@example.com
+Contact: https://example.com/security
+Expires: 2027-04-23T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://example.com/.well-known/security.txt
+
+# TODO: Replace example.com and security@example.com with the real project
+# domain and a monitored security contact before production use.
+# TODO: Review whether an Encryption field, policy URL, or acknowledgments URL
+# should be added for the live deployment.
