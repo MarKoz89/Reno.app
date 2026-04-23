@@ -124,6 +124,8 @@ export default function ResultsPage() {
   const localizedQuality = answers?.qualityLevel
     ? text.wizard.qualityOptions[answers.qualityLevel]
     : inputSummary?.qualityLevel;
+  const materialPreferencesLabel =
+    language === "cs" ? "Materialy a povrchy" : "Material preferences";
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-16">
@@ -332,14 +334,31 @@ export default function ResultsPage() {
             </section>
           </div>
 
-          {answers.notes ? (
+          {answers.notes || answers.materialPreferences ? (
             <section className="rounded-lg border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-950">
                 {text.results.notesTitle}
               </h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-600">
-                {answers.notes}
-              </p>
+              {answers.materialPreferences ? (
+                <div>
+                  <h3 className="mt-3 text-sm font-medium text-zinc-900">
+                    {materialPreferencesLabel}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                    {answers.materialPreferences}
+                  </p>
+                </div>
+              ) : null}
+              {answers.notes ? (
+                <div>
+                  <h3 className="mt-4 text-sm font-medium text-zinc-900">
+                    {text.results.notesTitle}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                    {answers.notes}
+                  </p>
+                </div>
+              ) : null}
             </section>
           ) : null}
 

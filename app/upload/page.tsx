@@ -5,28 +5,44 @@ import { useState } from "react";
 import {
   addLocalRoomImage,
   ensureDraftProject,
+  isProjectStorageError,
 } from "@/features/projects/local-projects";
+import {
+  createRoomPhotoPreviewDataUrl,
+  isRoomPhotoError,
+} from "@/features/projects/room-photo";
 import { useDraftProject } from "@/features/projects/use-local-projects";
 import { getDictionary } from "@/features/ui/dictionary";
 import { usePreferences } from "@/features/ui/use-preferences";
 
-const maxUploadBytes = 4 * 1024 * 1024;
-const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+function getUploadErrorMessage(
+  error: unknown,
+  text: ReturnType<typeof getDictionary>,
+  language: "en" | "cs",
+) {
+  if (isRoomPhotoError(error)) {
+    if (error.code === "unsupported-type") {
+      return text.upload.errors.type;
+    }
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
+    if (error.code === "file-too-large") {
+      return text.upload.errors.size;
+    }
 
-    reader.addEventListener("load", () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-      } else {
-        reject(new Error("Could not read image."));
-      }
-    });
-    reader.addEventListener("error", () => reject(new Error("Could not read image.")));
-    reader.readAsDataURL(file);
-  });
+    return text.upload.errors.read;
+  }
+
+  if (isProjectStorageError(error)) {
+    return error.code === "quota-exceeded"
+      ? language === "cs"
+        ? "Prohlizec nema dost mista pro ulozeni fotky. Zkuste mensi fotku nebo smazte starsi ulozene projekty."
+        : "This browser could not save the room photo. Try a smaller photo or clear older saved projects on this device."
+      : language === "cs"
+        ? "Fotku se nepodarilo ulozit do tohoto prohlizece. Zkuste to znovu."
+        : "The room photo could not be saved in this browser. Try again.";
+  }
+
+  return text.upload.errors.read;
 }
 
 export default function UploadPage() {
@@ -46,29 +62,18 @@ export default function UploadPage() {
     }
 
     setErrorMessage(null);
-
-    if (!allowedImageTypes.has(file.type)) {
-      setErrorMessage(text.upload.errors.type);
-      return;
-    }
-
-    if (file.size > maxUploadBytes) {
-      setErrorMessage(text.upload.errors.size);
-      return;
-    }
-
     setIsReadingFile(true);
 
     try {
-      const previewDataUrl = await readFileAsDataUrl(file);
+      const previewDataUrl = await createRoomPhotoPreviewDataUrl(file);
       ensureDraftProject();
       addLocalRoomImage({
         fileName: file.name,
         label: "Room photo",
         previewDataUrl,
       });
-    } catch {
-      setErrorMessage(text.upload.errors.read);
+    } catch (error) {
+      setErrorMessage(getUploadErrorMessage(error, text, language));
     } finally {
       setIsReadingFile(false);
       event.target.value = "";

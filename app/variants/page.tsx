@@ -72,6 +72,7 @@ export default function VariantsPage() {
   const project = useDraftProject();
   const { language } = usePreferences();
   const text = getDictionary(language);
+  const answers = project?.wizardAnswers;
   const selectedStyle = project?.selectedStyle;
   const selectedStyleText = selectedStyle
     ? text.style.styles[selectedStyle.id as keyof typeof text.style.styles]
@@ -82,10 +83,24 @@ export default function VariantsPage() {
   const sourceImageFileName = sourceImage?.fileName ?? "room-photo.png";
   const selectedStyleId = selectedStyle?.id;
   const selectedStyleName = selectedStyle?.name;
+  const roomType = answers?.roomType;
+  const roomSizeM2 = answers?.roomSizeM2;
+  const renovationScope = answers?.renovationScope;
+  const qualityLevel = answers?.qualityLevel;
+  const materialPreferences = answers?.materialPreferences ?? "";
+  const notes = answers?.notes ?? "";
   const missingPhotoMessage = text.variants.missingPhoto;
+  const missingDetailsMessage =
+    language === "cs"
+      ? "Nejdriv doplnte typ mistnosti, rozsah rekonstrukce a uroven provedeni."
+      : "Add room type, renovation scope, and quality level before generating redesign ideas.";
   const unavailableFallbackMessage = text.variants.unavailableFallback;
   const emptyVariantsMessage = text.variants.empty;
   const retryLabel = language === "cs" ? "Zkusit znovu" : "Try again";
+  const continueWithoutRedesignLabel =
+    language === "cs" ? "Pokracovat bez navrhu" : "Continue without redesign";
+  const backToDetailsLabel =
+    language === "cs" ? "Zpet k detailum" : "Back to project details";
   const [status, setStatus] = useState<RedesignStatus>("idle");
   const [variants, setVariants] = useState<RedesignVariant[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -112,6 +127,14 @@ export default function VariantsPage() {
           return;
         }
 
+        if (!roomType || !renovationScope || !qualityLevel) {
+          setStatus("error");
+          setVariants([]);
+          setErrorMessage(missingDetailsMessage);
+          setCanRetry(false);
+          return;
+        }
+
         setStatus("loading");
         setErrorMessage(null);
         setCanRetry(false);
@@ -125,6 +148,14 @@ export default function VariantsPage() {
           const formData = new FormData();
           formData.set("image", imageFile);
           formData.set("styleId", selectedStyleId);
+          formData.set("roomType", roomType);
+          formData.set("renovationScope", renovationScope);
+          formData.set("qualityLevel", qualityLevel);
+          formData.set("notes", notes);
+          formData.set("materialPreferences", materialPreferences);
+          if (typeof roomSizeM2 === "number" && Number.isFinite(roomSizeM2)) {
+            formData.set("roomSizeM2", String(roomSizeM2));
+          }
           formData.set("count", "1");
 
           const response = await fetch("/api/redesign", {
@@ -177,8 +208,15 @@ export default function VariantsPage() {
     selectedStyleName,
     sourceImageDataUrl,
     sourceImageFileName,
+    roomType,
+    roomSizeM2,
+    renovationScope,
+    qualityLevel,
+    materialPreferences,
+    notes,
     retryNonce,
     missingPhotoMessage,
+    missingDetailsMessage,
     text,
     unavailableFallbackMessage,
     emptyVariantsMessage,
@@ -200,18 +238,18 @@ export default function VariantsPage() {
   }
 
   function handleContinue() {
-    if (!project?.selectedRedesignVariant) {
+    if (!project?.selectedRedesignVariant && status !== "error") {
       return;
     }
 
-    router.push("/wizard");
+    router.push("/results");
   }
 
   return (
     <>
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-6 py-16">
       <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        {text.common.step(3)}
+        {text.common.step(4)}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
         {text.variants.title}
@@ -264,10 +302,17 @@ export default function VariantsPage() {
             ) : null}
             <button
               type="button"
-              onClick={() => router.push("/upload")}
+              onClick={handleContinue}
+              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
+            >
+              {continueWithoutRedesignLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/wizard")}
               className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900"
             >
-              {text.common.backToUpload}
+              {backToDetailsLabel}
             </button>
           </div>
         </div>
@@ -345,14 +390,14 @@ export default function VariantsPage() {
           disabled={!project?.selectedRedesignVariant}
           className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
         >
-          {text.variants.continue}
+          {language === "cs" ? "Pokracovat k odhadu" : "Continue to estimate"}
         </button>
         <button
           type="button"
-          onClick={() => router.push("/style")}
+          onClick={() => router.push("/wizard")}
           className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900"
         >
-          {text.common.backToStyles}
+          {backToDetailsLabel}
         </button>
       </div>
     </main>

@@ -13,6 +13,10 @@ export default function ProjectDetailPage() {
   const { language, currency } = usePreferences();
   const text = getDictionary(language);
   const savedEstimate = project?.estimate;
+  const materialPreferencesLabel =
+    language === "cs" ? "Materialy a povrchy" : "Material preferences";
+  const projectNotesLabel =
+    language === "cs" ? "Poznamky k projektu" : "Project notes";
   const midEstimate = savedEstimate
     ? savedEstimate.midTotal ??
       Math.round((savedEstimate.lowTotal + savedEstimate.highTotal) / 2)
@@ -94,6 +98,26 @@ export default function ProjectDetailPage() {
               </dd>
             </div>
           </dl>
+          {project.wizardAnswers?.materialPreferences ? (
+            <div className="mt-5 border-t border-zinc-200 pt-5">
+              <dt className="text-sm font-medium text-zinc-900">
+                {materialPreferencesLabel}
+              </dt>
+              <dd className="mt-2 text-sm leading-6 text-zinc-600">
+                {project.wizardAnswers.materialPreferences}
+              </dd>
+            </div>
+          ) : null}
+          {project.wizardAnswers?.notes ? (
+            <div className="mt-5 border-t border-zinc-200 pt-5">
+              <dt className="text-sm font-medium text-zinc-900">
+                {projectNotesLabel}
+              </dt>
+              <dd className="mt-2 text-sm leading-6 text-zinc-600">
+                {project.wizardAnswers.notes}
+              </dd>
+            </div>
+          ) : null}
         </section>
 
         {project.selectedRedesignVariant ? (

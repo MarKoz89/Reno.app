@@ -21,7 +21,9 @@ type PlanningRequest = {
   roomSizeM2?: unknown;
   renovationScope?: unknown;
   qualityLevel?: unknown;
+  materialPreferences?: unknown;
   notes?: unknown;
+  roomPhotoDataUrl?: unknown;
   language?: unknown;
 };
 
@@ -31,7 +33,9 @@ type NormalizedPlanningRequest = {
   roomSizeM2?: number;
   renovationScope: RenovationScope;
   qualityLevel: QualityLevel;
+  materialPreferences: string;
   notes: string;
+  roomPhotoDataUrl?: string;
   language: "en" | "cs";
 };
 
@@ -129,6 +133,11 @@ function normalizeRequest(input: PlanningRequest) {
       ? input.roomSizeM2
       : undefined;
   const language = input.language === "cs" ? "cs" : "en";
+  const roomPhotoDataUrl =
+    typeof input.roomPhotoDataUrl === "string" &&
+    input.roomPhotoDataUrl.startsWith("data:image/")
+      ? input.roomPhotoDataUrl
+      : undefined;
 
   return {
     styleId: input.styleId,
@@ -136,7 +145,12 @@ function normalizeRequest(input: PlanningRequest) {
     roomSizeM2,
     renovationScope: input.renovationScope,
     qualityLevel: input.qualityLevel,
+    materialPreferences:
+      typeof input.materialPreferences === "string"
+        ? input.materialPreferences.slice(0, 300)
+        : "",
     notes: typeof input.notes === "string" ? input.notes.slice(0, 1200) : "",
+    roomPhotoDataUrl,
     language,
   } satisfies NormalizedPlanningRequest;
 }
@@ -207,7 +221,11 @@ function buildPrompt({
     `Room size: ${input.roomSizeM2 ? `${input.roomSizeM2} m2` : "not provided"}.`,
     `Renovation scope: ${input.renovationScope}.`,
     `Quality level: ${input.qualityLevel}.`,
+    `Material preferences: ${input.materialPreferences || "None provided."}`,
     `User notes: ${input.notes || "None provided."}`,
+    input.roomPhotoDataUrl
+      ? "A room photo is attached. Use it together with the written inputs when deciding recommendations."
+      : "No room photo is attached, so rely on the written inputs only.",
   ].join(" ");
 }
 
@@ -289,11 +307,28 @@ export async function POST(request: Request) {
   let providerResponse: Response;
 
   try {
+    const content: Array<
+      | { type: "input_text"; text: string }
+      | { type: "input_image"; image_url: string }
+    > = [{ type: "input_text", text: prompt }];
+
+    if (input.roomPhotoDataUrl) {
+      content.push({
+        type: "input_image",
+        image_url: input.roomPhotoDataUrl,
+      });
+    }
+
     providerResponse = await postToOpenAI({
       apiKey,
       body: {
         model,
-        input: prompt,
+        input: [
+          {
+            role: "user",
+            content,
+          },
+        ],
         text: {
           format: {
             type: "json_schema",

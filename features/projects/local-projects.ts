@@ -16,6 +16,28 @@ let cachedSavedProjects: ProjectSession[] = [];
 let cachedMockProject: ProjectSession | null = null;
 let cachedProjectsForDisplay: ProjectSession[] | null = null;
 
+export type ProjectStorageErrorCode = "quota-exceeded" | "unavailable";
+
+export class ProjectStorageError extends Error {
+  constructor(public readonly code: ProjectStorageErrorCode) {
+    super(code);
+    this.name = "ProjectStorageError";
+  }
+}
+
+export function isProjectStorageError(
+  error: unknown,
+): error is ProjectStorageError {
+  return error instanceof ProjectStorageError;
+}
+
+function isQuotaExceededError(error: unknown) {
+  return (
+    error instanceof DOMException &&
+    (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
+  );
+}
+
 function now() {
   return new Date().toISOString();
 }
@@ -66,7 +88,16 @@ function writeJson<T>(key: string, value: T) {
     return;
   }
 
-  window.localStorage.setItem(key, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    if (isQuotaExceededError(error)) {
+      throw new ProjectStorageError("quota-exceeded");
+    }
+
+    throw new ProjectStorageError("unavailable");
+  }
+
   window.dispatchEvent(new Event(projectStorageEvent));
 }
 
@@ -275,6 +306,7 @@ export function createMockProject(): ProjectSession {
       roomSizeM2: 8,
       renovationScope: "light",
       qualityLevel: "standard",
+      materialPreferences: "Light tile, matte fixtures, and easy-clean painted walls.",
       notes: "Keep the layout, brighten the finishes, and avoid major plumbing work.",
     },
   };

@@ -28,7 +28,7 @@ export default function StylePage() {
       selectedStyle,
       selectedRedesignVariant: undefined,
     });
-    router.push("/variants");
+    router.push("/wizard");
   }
 
   return (

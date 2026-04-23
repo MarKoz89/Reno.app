@@ -156,7 +156,9 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
   const roomSizeM2 = answers?.roomSizeM2;
   const renovationScope = answers?.renovationScope;
   const qualityLevel = answers?.qualityLevel;
+  const materialPreferences = answers?.materialPreferences ?? "";
   const notes = answers?.notes ?? "";
+  const roomPhotoDataUrl = project.uploadedImages[0]?.previewDataUrl;
   const planningInput = useMemo(() => {
     if (
       !styleId ||
@@ -173,14 +175,18 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
       roomSizeM2,
       renovationScope,
       qualityLevel,
+      materialPreferences,
       notes,
+      roomPhotoDataUrl,
       language,
     };
   }, [
     language,
+    materialPreferences,
     notes,
     qualityLevel,
     renovationScope,
+    roomPhotoDataUrl,
     roomSizeM2,
     roomType,
     styleId,
@@ -346,6 +352,8 @@ export function ReportPageClient() {
   const localizedQuality = answers?.qualityLevel
     ? text.wizard.qualityOptions[answers.qualityLevel]
     : inputSummary?.qualityLevel;
+  const materialPreferencesLabel =
+    language === "cs" ? "Materialy a povrchy" : "Material preferences";
 
   if (!project) {
     return (
@@ -451,6 +459,16 @@ export function ReportPageClient() {
               </h3>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
                 {answers.notes}
+              </p>
+            </div>
+          ) : null}
+          {answers?.materialPreferences ? (
+            <div className="mt-5 border-t border-zinc-200 pt-5">
+              <h3 className="text-sm font-medium text-zinc-900">
+                {materialPreferencesLabel}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                {answers.materialPreferences}
               </p>
             </div>
           ) : null}

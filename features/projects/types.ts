@@ -33,6 +33,7 @@ export type WizardAnswers = {
   roomSizeM2?: number;
   renovationScope?: RenovationScope;
   qualityLevel?: QualityLevel;
+  materialPreferences?: string;
   notes: string;
 };
 
