@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model estimates {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id  String?   @db.Uuid
+  low_price   Int?
+  mid_price   Int?
+  high_price  Int?
+  confidence  String?
+  explanation String?
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  projects    projects? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model projects {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email      String?
+  room_type       String?
+  renovation_type String?
+  budget_min      Int?
+  budget_max      Int?
+  created_at      DateTime?   @default(now()) @db.Timestamp(6)
+  estimates       estimates[]
+  redesigns       redesigns[]
+}
+
+model redesigns {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id String?   @db.Uuid
+  image_url  String?
+  prompt     String?
+  status     String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  projects   projects? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
