@@ -1,8 +1,8 @@
-import { getSavedProjectByPublicId } from "@/lib/server/projects/prisma-projects";
+import { getSavedProjectById } from "@/lib/server/projects/prisma-projects";
 
 export const runtime = "nodejs";
 
-function getOwnerToken(request: Request) {
+function getProjectUserEmail(request: Request) {
   return request.headers.get("x-owner-token")?.trim() ?? "";
 }
 
@@ -20,20 +20,20 @@ function jsonError(message: string, status: number) {
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ publicId: string }> },
+  context: { params: Promise<{ projectId: string }> },
 ) {
-  const ownerToken = getOwnerToken(request);
+  const userEmail = getProjectUserEmail(request);
 
-  if (!ownerToken) {
-    return jsonError("Owner token is required.", 400);
+  if (!userEmail) {
+    return jsonError("User identifier is required.", 400);
   }
 
-  const { publicId } = await context.params;
+  const { projectId } = await context.params;
 
   try {
-    const project = await getSavedProjectByPublicId({
-      ownerToken,
-      publicId,
+    const project = await getSavedProjectById({
+      projectId,
+      userEmail,
     });
 
     if (!project) {
@@ -42,7 +42,7 @@ export async function GET(
 
     return Response.json({ ok: true, project });
   } catch (error) {
-    console.error("[api/projects/[publicId]]", error);
+    console.error("[api/projects/[projectId]]", error);
     return jsonError("Saved project could not be loaded.", 500);
   }
 }

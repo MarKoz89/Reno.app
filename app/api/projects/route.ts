@@ -1,16 +1,16 @@
 import {
   createSavedProject,
   listSavedProjects,
+  type SaveProjectInput,
 } from "@/lib/server/projects/prisma-projects";
-import type { ProjectSession } from "@/features/projects/types";
 
 export const runtime = "nodejs";
 
 type SaveProjectRequest = {
-  project?: ProjectSession;
+  project?: SaveProjectInput;
 };
 
-function getOwnerToken(request: Request) {
+function getProjectUserEmail(request: Request) {
   return request.headers.get("x-owner-token")?.trim() ?? "";
 }
 
@@ -27,14 +27,14 @@ function jsonError(message: string, status: number) {
 }
 
 export async function GET(request: Request) {
-  const ownerToken = getOwnerToken(request);
+  const userEmail = getProjectUserEmail(request);
 
-  if (!ownerToken) {
-    return jsonError("Owner token is required.", 400);
+  if (!userEmail) {
+    return jsonError("User identifier is required.", 400);
   }
 
   try {
-    const projects = await listSavedProjects(ownerToken);
+    const projects = await listSavedProjects(userEmail);
     return Response.json({ ok: true, projects });
   } catch (error) {
     console.error("[api/projects]", error);
@@ -43,12 +43,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const ownerToken = getOwnerToken(request);
-
-  if (!ownerToken) {
-    return jsonError("Owner token is required.", 400);
-  }
-
   let body: SaveProjectRequest;
 
   try {
@@ -62,14 +56,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const project = await createSavedProject({
-      ownerToken,
-      project: body.project,
-    });
+    const project = await createSavedProject(body.project);
 
     return Response.json({ ok: true, project }, { status: 201 });
   } catch (error) {
-    console.error("[api/projects]", error);
+    console.error("SAVE_PROJECT_ERROR", error);
     return jsonError("The project could not be saved.", 500);
   }
 }

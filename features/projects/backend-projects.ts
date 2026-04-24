@@ -23,6 +23,26 @@ type SavedProjectsResponse =
       };
     };
 
+type CreatedProjectResponse =
+  | {
+      ok: true;
+      project: {
+        id: string;
+        user_email: string | null;
+        room_type: string | null;
+        renovation_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        created_at: string;
+      };
+    }
+  | {
+      ok: false;
+      error?: {
+        message?: string;
+      };
+    };
+
 type SavedProjectResponse =
   | {
       ok: true;
@@ -47,25 +67,15 @@ async function readResponse<T>(response: Response) {
 
 function buildProjectSavePayload(project: ProjectSession) {
   const estimate = project.estimate ?? calculateEstimate(project);
-  const selectedRedesignVariant = project.selectedRedesignVariant?.imageUrl.startsWith(
-    "data:image/",
-  )
-    ? undefined
-    : project.selectedRedesignVariant;
 
   return {
     project: {
-      name: project.name,
-      status: project.status,
-      selectedStyle: project.selectedStyle,
-      selectedRedesignVariant,
-      wizardAnswers: project.wizardAnswers,
-      estimate,
-      uploadedImages: [],
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      id: project.id,
-    } satisfies ProjectSession,
+      user_email: ensureOwnerToken(),
+      room_type: project.wizardAnswers?.roomType ?? null,
+      renovation_type: project.wizardAnswers?.renovationScope ?? null,
+      budget_min: estimate.lowTotal,
+      budget_max: estimate.highTotal,
+    },
   };
 }
 
@@ -101,6 +111,7 @@ export function saveCompletedEstimate() {
 
 export async function saveProjectFromDraftToBackend() {
   const draft = ensureDraftProject();
+  const estimate = draft.estimate ?? calculateEstimate(draft);
   const response = await fetch("/api/projects", {
     method: "POST",
     headers: {
@@ -109,7 +120,7 @@ export async function saveProjectFromDraftToBackend() {
     },
     body: JSON.stringify(buildProjectSavePayload(draft)),
   });
-  const data = await readResponse<SavedProjectResponse>(response);
+  const data = await readResponse<CreatedProjectResponse>(response);
 
   if (!response.ok || !data.ok) {
     throw new Error(
@@ -119,10 +130,19 @@ export async function saveProjectFromDraftToBackend() {
     );
   }
 
-  upsertSavedProject(data.project);
+  const savedProject: ProjectSession = {
+    ...draft,
+    id: data.project.id,
+    status: "saved",
+    createdAt: data.project.created_at,
+    updatedAt: data.project.created_at,
+    estimate,
+  };
+
+  upsertSavedProject(savedProject);
   resetDraftProject();
 
-  return data.project;
+  return savedProject;
 }
 
 export async function syncSavedProjectsFromBackend() {
