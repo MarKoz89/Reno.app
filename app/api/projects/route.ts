@@ -1,4 +1,7 @@
-import { createSavedProject, listSavedProjects } from "@/lib/server/projects/repository";
+import {
+  createSavedProject,
+  listSavedProjects,
+} from "@/lib/server/projects/prisma-projects";
 import type { ProjectSession } from "@/features/projects/types";
 
 export const runtime = "nodejs";

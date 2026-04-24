@@ -68,6 +68,55 @@ function normalizeProjectSession(project: ProjectSession): ProjectSession {
   };
 }
 
+function mergeWizardAnswers(
+  current: ProjectSession["wizardAnswers"],
+  incoming: ProjectSession["wizardAnswers"],
+) {
+  const roomType = incoming?.roomType ?? current?.roomType;
+
+  if (!roomType) {
+    return undefined;
+  }
+
+  return {
+    roomType,
+    roomSizeM2: incoming?.roomSizeM2 ?? current?.roomSizeM2,
+    renovationScope: incoming?.renovationScope ?? current?.renovationScope,
+    qualityLevel: incoming?.qualityLevel ?? current?.qualityLevel,
+    materialPreferences:
+      incoming?.materialPreferences ?? current?.materialPreferences,
+    notes: incoming?.notes ?? current?.notes ?? "",
+  };
+}
+
+function mergeProjectSession(
+  current: ProjectSession | undefined,
+  incoming: ProjectSession,
+) {
+  if (!current) {
+    return normalizeProjectSession(incoming);
+  }
+
+  return normalizeProjectSession({
+    ...current,
+    ...incoming,
+    name: current.name || incoming.name,
+    createdAt: current.createdAt || incoming.createdAt,
+    uploadedImages:
+      incoming.uploadedImages.length > 0
+        ? incoming.uploadedImages
+        : current.uploadedImages,
+    selectedStyle: incoming.selectedStyle ?? current.selectedStyle,
+    selectedRedesignVariant:
+      incoming.selectedRedesignVariant ?? current.selectedRedesignVariant,
+    wizardAnswers: mergeWizardAnswers(
+      current.wizardAnswers,
+      incoming.wizardAnswers,
+    ),
+    estimate: incoming.estimate ?? current.estimate,
+  });
+}
+
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") {
     return fallback;
@@ -115,7 +164,10 @@ function mergeProjects(
   }
 
   for (const project of incomingProjects) {
-    mergedProjects.set(project.id, normalizeProjectSession(project));
+    mergedProjects.set(
+      project.id,
+      mergeProjectSession(mergedProjects.get(project.id), project),
+    );
   }
 
   return Array.from(mergedProjects.values()).sort((left, right) =>

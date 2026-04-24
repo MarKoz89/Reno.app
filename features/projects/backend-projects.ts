@@ -1,11 +1,13 @@
 "use client";
 
+import { calculateEstimate } from "@/features/estimation/calculate-estimate";
 import type { ProjectSession } from "@/features/projects/types";
 import {
   ensureDraftProject,
   ensureOwnerToken,
   mergeSavedProjects,
   resetDraftProject,
+  saveProjectFromDraft,
   upsertSavedProject,
 } from "@/features/projects/local-projects";
 
@@ -43,6 +45,60 @@ async function readResponse<T>(response: Response) {
   return (await response.json()) as T;
 }
 
+function buildProjectSavePayload(project: ProjectSession) {
+  const estimate = project.estimate ?? calculateEstimate(project);
+  const selectedRedesignVariant = project.selectedRedesignVariant?.imageUrl.startsWith(
+    "data:image/",
+  )
+    ? undefined
+    : project.selectedRedesignVariant;
+
+  return {
+    project: {
+      name: project.name,
+      status: project.status,
+      selectedStyle: project.selectedStyle,
+      selectedRedesignVariant,
+      wizardAnswers: project.wizardAnswers,
+      estimate,
+      uploadedImages: [],
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      id: project.id,
+    } satisfies ProjectSession,
+  };
+}
+
+async function persistCompletedEstimate(project: ProjectSession) {
+  try {
+    const response = await fetch("/api/estimates", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        project,
+      }),
+      keepalive: true,
+    });
+
+    if (!response.ok) {
+      console.error("[projects] estimate persistence failed", await response.text());
+    }
+  } catch (error) {
+    console.error("[projects] estimate persistence failed", error);
+  }
+}
+
+export function saveCompletedEstimate() {
+  const savedProject = saveProjectFromDraft();
+
+  // The local save remains primary; the database write is a safe secondary action.
+  void persistCompletedEstimate(savedProject);
+
+  return savedProject;
+}
+
 export async function saveProjectFromDraftToBackend() {
   const draft = ensureDraftProject();
   const response = await fetch("/api/projects", {
@@ -51,9 +107,7 @@ export async function saveProjectFromDraftToBackend() {
       "Content-Type": "application/json",
       ...getOwnerHeaders(),
     },
-    body: JSON.stringify({
-      project: draft,
-    }),
+    body: JSON.stringify(buildProjectSavePayload(draft)),
   });
   const data = await readResponse<SavedProjectResponse>(response);
 

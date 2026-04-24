@@ -1,4 +1,4 @@
-import { getSavedProjectByPublicId } from "@/lib/server/projects/repository";
+import { getSavedProjectByPublicId } from "@/lib/server/projects/prisma-projects";
 
 export const runtime = "nodejs";
 
