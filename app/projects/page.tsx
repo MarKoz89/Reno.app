@@ -7,7 +7,7 @@ import { formatCurrency } from "@/features/ui/format";
 import { usePreferences } from "@/features/ui/use-preferences";
 
 export default function ProjectsPage() {
-  const projects = useProjectsForDisplay();
+  const { isLoading, projects } = useProjectsForDisplay();
   const { language, currency } = usePreferences();
   const text = getDictionary(language);
 
@@ -22,6 +22,14 @@ export default function ProjectsPage() {
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
         {text.projects.body}
       </p>
+
+      {isLoading && projects.length === 0 ? (
+        <p className="mt-8 text-sm text-zinc-600">
+          {language === "cs"
+            ? "Nacitaji se ulozene projekty..."
+            : "Loading saved projects..."}
+        </p>
+      ) : null}
 
       <div className="mt-8 grid gap-4">
         {projects.map((project) => (

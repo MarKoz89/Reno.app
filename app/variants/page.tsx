@@ -121,7 +121,8 @@ export default function VariantsPage() {
     : undefined;
   const selectedVariantId = project?.selectedRedesignVariant?.id;
   const sourceImage = project?.uploadedImages[0];
-  const sourceImageDataUrl = sourceImage?.previewDataUrl;
+  const sourceImageDataUrl =
+    sourceImage?.redesignDataUrl ?? sourceImage?.previewDataUrl;
   const sourceImageFileName = sourceImage?.fileName ?? "room-photo.png";
   const selectedStyleId = selectedStyle?.id;
   const selectedStyleName = selectedStyle?.name;
@@ -131,7 +132,7 @@ export default function VariantsPage() {
   const qualityLevel = answers?.qualityLevel;
   const materialPreferences = answers?.materialPreferences ?? "";
   const notes = answers?.notes ?? "";
-  const compressedImageBytes = sourceImageDataUrl
+  const sourceImageBytes = sourceImageDataUrl
     ? getRoomPhotoDataUrlBytes(sourceImageDataUrl)
     : 0;
   const missingPhotoMessage = text.variants.missingPhoto;
@@ -190,7 +191,7 @@ export default function VariantsPage() {
         setVariants([]);
 
         try {
-          if (compressedImageBytes > maxRedesignImageBytes) {
+          if (sourceImageBytes > maxRedesignImageBytes) {
             setStatus("error");
             setVariants([]);
             setCanRetry(false);
@@ -289,7 +290,7 @@ export default function VariantsPage() {
     materialPreferences,
     notes,
     retryNonce,
-    compressedImageBytes,
+    sourceImageBytes,
     missingPhotoMessage,
     missingDetailsMessage,
     oversizedRequestMessage,

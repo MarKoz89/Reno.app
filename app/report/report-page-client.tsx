@@ -8,10 +8,9 @@ import {
   getEstimateInputSummary,
 } from "@/features/estimation/calculate-estimate";
 import {
-  getDraftProject,
-  getProjectForDisplayById,
-  subscribeToProjectStorage,
-} from "@/features/projects/local-projects";
+  useDraftProject,
+  useProjectForDisplay,
+} from "@/features/projects/use-local-projects";
 import type {
   ProjectSession,
   RenovationEstimate,
@@ -39,25 +38,6 @@ type PlanningInsightsResponse =
         message?: string;
       };
     };
-
-function getProjectForReport(projectId: string | null) {
-  return projectId ? getProjectForDisplayById(projectId) : getDraftProject();
-}
-
-function useReportProject(projectId: string | null) {
-  const [project, setProject] = useState<ProjectSession | null>(null);
-
-  useEffect(() => {
-    function updateProject() {
-      setProject(getProjectForReport(projectId));
-    }
-
-    updateProject();
-    return subscribeToProjectStorage(updateProject);
-  }, [projectId]);
-
-  return project;
-}
 
 function getEstimate(project: ProjectSession): RenovationEstimate | undefined {
   if (project.estimate) {
@@ -131,6 +111,32 @@ function localizeAssumption(
   return assumption;
 }
 
+function localizeConfidenceReason(
+  reason: string,
+  text: ReturnType<typeof getDictionary>,
+) {
+  const confidenceText = text.estimateDomain.confidenceReasons;
+  const exact = getMappedText(reason, confidenceText.exact);
+  const missingFieldsMatch = reason.match(
+    /^Missing (.+) reduced confidence because defaults were used\.$/,
+  );
+
+  if (exact !== reason) {
+    return exact;
+  }
+
+  if (missingFieldsMatch) {
+    const fields = missingFieldsMatch[1]
+      .split(", ")
+      .map((field) => getMappedText(field, confidenceText.fields))
+      .join(", ");
+
+    return confidenceText.missingFields(fields);
+  }
+
+  return reason;
+}
+
 function getPlanningErrorMessage(
   data: PlanningInsightsResponse,
   text: ReturnType<typeof getDictionary>,
@@ -158,7 +164,11 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
   const qualityLevel = answers?.qualityLevel;
   const materialPreferences = answers?.materialPreferences ?? "";
   const notes = answers?.notes ?? "";
-  const roomPhotoDataUrl = project.uploadedImages[0]?.previewDataUrl;
+  const roomPhotoDataUrl = project.uploadedImages[0]?.previewDataUrl?.startsWith(
+    "data:image/",
+  )
+    ? project.uploadedImages[0].previewDataUrl
+    : undefined;
   const planningInput = useMemo(() => {
     if (
       !styleId ||
@@ -337,9 +347,14 @@ function PlanningInsightsSection({ project }: { project: ProjectSession }) {
 export function ReportPageClient() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId");
+  const draftProject = useDraftProject();
+  const {
+    isLoading: isSavedProjectLoading,
+    project: savedProject,
+  } = useProjectForDisplay(projectId);
   const { language, currency } = usePreferences();
   const text = getDictionary(language);
-  const project = useReportProject(projectId);
+  const project = projectId ? savedProject : draftProject;
   const estimate = useMemo(
     () => (project ? getEstimate(project) : undefined),
     [project],
@@ -354,6 +369,29 @@ export function ReportPageClient() {
     : inputSummary?.qualityLevel;
   const materialPreferencesLabel =
     language === "cs" ? "Materialy a povrchy" : "Material preferences";
+  const rangeGuideItems = [
+    { label: text.common.low, description: text.report.rangeGuideLow },
+    { label: text.common.mid, description: text.report.rangeGuideMid },
+    { label: text.common.high, description: text.report.rangeGuideHigh },
+  ];
+
+  if (projectId && isSavedProjectLoading && !project) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16">
+        <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
+          {text.report.title}
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
+          {language === "cs" ? "Nacitani reportu" : "Loading report"}
+        </h1>
+        <p className="mt-4 text-sm leading-6 text-zinc-600">
+          {language === "cs"
+            ? "Nacitame ulozeny projekt ze serveru."
+            : "Loading the saved project snapshot from the server."}
+        </p>
+      </main>
+    );
+  }
 
   if (!project) {
     return (
@@ -538,6 +576,40 @@ export function ReportPageClient() {
                   </dd>
                 </div>
               </div>
+              <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                <p className="text-sm font-medium text-zinc-950">
+                  {text.report.notQuote}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">
+                  {text.report.scopeBoundary}
+                </p>
+                <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {text.report.estimateConfidence}
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold text-zinc-950">
+                      {estimate.confidenceScore}/100
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                      {text.report.confidenceBody}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {text.report.rangeGuideTitle}
+                    </p>
+                    <ul className="mt-2 space-y-2 text-sm leading-6 text-zinc-600">
+                      {rangeGuideItems.map((item) => (
+                        <li key={item.label}>
+                          <span className="font-medium text-zinc-900">{item.label}:</span>{" "}
+                          {item.description}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <p className="mt-4 text-sm leading-6 text-zinc-600">
                 {text.report.confidenceSummary(estimate.confidenceScore)}
               </p>
@@ -547,6 +619,9 @@ export function ReportPageClient() {
               <h2 className="text-xl font-semibold text-zinc-950">
                 {text.report.costBreakdown}
               </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                {text.report.exclusionsReminder}
+              </p>
               <div className="mt-5 divide-y divide-zinc-200">
                 {estimate.lineItems.map((item) => (
                   <div key={item.label} className="py-4">
@@ -572,6 +647,22 @@ export function ReportPageClient() {
                   </div>
                 ))}
               </div>
+            </section>
+
+            <section className="rounded-lg border border-zinc-200 p-6">
+              <h2 className="text-xl font-semibold text-zinc-950">
+                {text.report.confidenceReasonsTitle}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                {text.report.confidenceBody}
+              </p>
+              <ul className="mt-4 space-y-2 text-sm leading-6 text-zinc-600">
+                {estimate.confidenceReasons.map((reason) => (
+                  <li key={reason} className="border-l-2 border-zinc-200 pl-3">
+                    {localizeConfidenceReason(reason, text)}
+                  </li>
+                ))}
+              </ul>
             </section>
 
             <div className="grid gap-6 lg:grid-cols-2">

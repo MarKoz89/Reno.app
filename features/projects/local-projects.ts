@@ -8,6 +8,7 @@ import type {
 
 const draftKey = "reno-app:draft-project";
 const projectsKey = "reno-app:saved-projects";
+const ownerTokenKey = "reno-app:owner-token";
 const projectStorageEvent = "reno-app:project-storage-changed";
 let cachedDraftRaw: string | null = null;
 let cachedDraftProject: ProjectSession | null = null;
@@ -52,7 +53,9 @@ function normalizeUploadedImages(images: UploadedRoomImage[] | undefined) {
   }
 
   const activeImage =
-    [...images].reverse().find((image) => image.previewDataUrl) ??
+    [...images].reverse().find(
+      (image) => image.previewDataUrl || image.redesignDataUrl,
+    ) ??
     images[images.length - 1];
 
   return activeImage ? [activeImage] : [];
@@ -99,6 +102,25 @@ function writeJson<T>(key: string, value: T) {
   }
 
   window.dispatchEvent(new Event(projectStorageEvent));
+}
+
+function mergeProjects(
+  currentProjects: ProjectSession[],
+  incomingProjects: ProjectSession[],
+) {
+  const mergedProjects = new Map<string, ProjectSession>();
+
+  for (const project of currentProjects) {
+    mergedProjects.set(project.id, project);
+  }
+
+  for (const project of incomingProjects) {
+    mergedProjects.set(project.id, normalizeProjectSession(project));
+  }
+
+  return Array.from(mergedProjects.values()).sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt),
+  );
 }
 
 export function subscribeToProjectStorage(onStoreChange: () => void) {
@@ -160,8 +182,31 @@ export function ensureDraftProject() {
   return draft;
 }
 
+export function resetDraftProject() {
+  const draft = createDraftProject();
+  writeJson(draftKey, draft);
+  return draft;
+}
+
 export function saveDraftProject(project: ProjectSession) {
   writeJson(draftKey, normalizeProjectSession({ ...project, updatedAt: now() }));
+}
+
+export function ensureOwnerToken() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const existingToken = window.localStorage.getItem(ownerTokenKey);
+
+  if (existingToken) {
+    return existingToken;
+  }
+
+  const ownerToken = crypto.randomUUID();
+  window.localStorage.setItem(ownerTokenKey, ownerToken);
+  window.dispatchEvent(new Event(projectStorageEvent));
+  return ownerToken;
 }
 
 export function addMockRoomImage(label: string) {
@@ -188,10 +233,12 @@ export function addLocalRoomImage({
   fileName,
   label,
   previewDataUrl,
+  redesignDataUrl,
 }: {
   fileName: string;
   label: string;
   previewDataUrl: string;
+  redesignDataUrl: string;
 }) {
   const draft = ensureDraftProject();
   const image: UploadedRoomImage = {
@@ -200,6 +247,7 @@ export function addLocalRoomImage({
     label,
     addedAt: now(),
     previewDataUrl,
+    redesignDataUrl,
   };
 
   const updatedDraft = {
@@ -253,6 +301,18 @@ export function getSavedProjects() {
   cachedProjectsForDisplay = null;
 
   return cachedSavedProjects;
+}
+
+export function upsertSavedProject(project: ProjectSession) {
+  const nextProjects = mergeProjects(getSavedProjects(), [project]);
+  writeJson(projectsKey, nextProjects);
+  return project;
+}
+
+export function mergeSavedProjects(projects: ProjectSession[]) {
+  const nextProjects = mergeProjects(getSavedProjects(), projects);
+  writeJson(projectsKey, nextProjects);
+  return nextProjects;
 }
 
 export function saveProjectFromDraft() {

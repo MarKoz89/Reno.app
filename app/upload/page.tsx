@@ -8,7 +8,7 @@ import {
   isProjectStorageError,
 } from "@/features/projects/local-projects";
 import {
-  createRoomPhotoPreviewDataUrl,
+  createRoomPhotoStoredImages,
   isRoomPhotoError,
 } from "@/features/projects/room-photo";
 import { useDraftProject } from "@/features/projects/use-local-projects";
@@ -65,12 +65,14 @@ export default function UploadPage() {
     setIsReadingFile(true);
 
     try {
-      const previewDataUrl = await createRoomPhotoPreviewDataUrl(file);
+      const { previewDataUrl, redesignDataUrl } =
+        await createRoomPhotoStoredImages(file);
       ensureDraftProject();
       addLocalRoomImage({
         fileName: file.name,
         label: "Room photo",
         previewDataUrl,
+        redesignDataUrl,
       });
     } catch (error) {
       setErrorMessage(getUploadErrorMessage(error, text, language));

@@ -9,6 +9,7 @@ import type {
 export const runtime = "nodejs";
 
 const maxImageBytes = 8 * 1024 * 1024;
+const maxRequestBytes = maxImageBytes + 512 * 1024;
 const generationTimeoutMs = 60_000;
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const roomTypes: RoomType[] = ["kitchen", "bathroom", "living-room", "bedroom"];
@@ -17,13 +18,15 @@ const qualityLevels: QualityLevel[] = ["budget", "standard", "premium"];
 
 type RedesignErrorCode =
   | "BAD_REQUEST"
+  | "REQUEST_TOO_LARGE"
   | "MISSING_IMAGE"
   | "UNKNOWN_STYLE"
   | "UNSUPPORTED_IMAGE_TYPE"
   | "IMAGE_TOO_LARGE"
   | "MISSING_AI_KEY"
   | "AI_TIMEOUT"
-  | "AI_PROVIDER_ERROR";
+  | "AI_PROVIDER_ERROR"
+  | "INTERNAL_ERROR";
 
 type OpenAIImageResponse = {
   data?: Array<{
@@ -35,11 +38,18 @@ type OpenAIImageResponse = {
   };
 };
 
+type RedesignDebugConfig = {
+  enabled: boolean;
+  disableImageInput: boolean;
+  logFullOpenAIResponse: boolean;
+};
+
 function jsonError(
   code: RedesignErrorCode,
   message: string,
   status: number,
   retryable: boolean,
+  requestId: string,
 ) {
   return Response.json(
     {
@@ -48,10 +58,86 @@ function jsonError(
         code,
         message,
         retryable,
+        requestId,
       },
     },
     { status },
   );
+}
+
+function logRedesignFailure({
+  requestId,
+  code,
+  status,
+  message,
+  details,
+  error,
+}: {
+  requestId: string;
+  code: RedesignErrorCode;
+  status: number;
+  message: string;
+  details?: Record<string, unknown>;
+  error?: unknown;
+}) {
+  console.error("[api/redesign]", {
+    requestId,
+    code,
+    status,
+    message,
+    details,
+    error:
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : error,
+  });
+}
+
+function logRedesignEvent(
+  event: string,
+  details: Record<string, unknown>,
+  level: "info" | "warn" | "error" = "info",
+) {
+  const logger =
+    level === "error" ? console.error : level === "warn" ? console.warn : console.info;
+
+  logger("[api/redesign]", {
+    event,
+    ...details,
+  });
+}
+
+function jsonLoggedError({
+  requestId,
+  code,
+  message,
+  status,
+  retryable,
+  details,
+  error,
+}: {
+  requestId: string;
+  code: RedesignErrorCode;
+  message: string;
+  status: number;
+  retryable: boolean;
+  details?: Record<string, unknown>;
+  error?: unknown;
+}) {
+  logRedesignFailure({
+    requestId,
+    code,
+    status,
+    message,
+    details,
+    error,
+  });
+
+  return jsonError(code, message, status, retryable, requestId);
 }
 
 function clampCount(value: FormDataEntryValue | null) {
@@ -62,6 +148,24 @@ function clampCount(value: FormDataEntryValue | null) {
   }
 
   return Math.max(1, Math.min(3, Math.round(count)));
+}
+
+function readBooleanFlag(value: string | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+function getDebugConfig(): RedesignDebugConfig {
+  return {
+    enabled: readBooleanFlag(process.env.REDESIGN_DEBUG),
+    disableImageInput: readBooleanFlag(process.env.REDESIGN_DEBUG_DISABLE_IMAGE),
+    logFullOpenAIResponse: readBooleanFlag(
+      process.env.REDESIGN_DEBUG_LOG_FULL_OPENAI_RESPONSE,
+    ),
+  };
 }
 
 function isRoomType(value: unknown): value is RoomType {
@@ -130,6 +234,14 @@ function buildPrompt({
   ].join(" ");
 }
 
+function truncateForLog(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}...`;
+}
+
 function isUsableImageUrl(value: unknown): value is string {
   if (typeof value !== "string") {
     return false;
@@ -173,19 +285,24 @@ function getImageUrlsFromPayload(payload: OpenAIImageResponse, count: number) {
 
 async function postToImageProvider({
   apiKey,
+  endpoint,
   body,
+  contentType,
 }: {
   apiKey: string;
-  body: FormData;
+  endpoint: string;
+  body: FormData | string;
+  contentType?: string;
 }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), generationTimeoutMs);
 
   try {
-    return await fetch("https://api.openai.com/v1/images/edits", {
+    return await fetch(`https://api.openai.com/v1${endpoint}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        ...(contentType ? { "Content-Type": contentType } : {}),
       },
       body,
       signal: controller.signal,
@@ -195,29 +312,93 @@ async function postToImageProvider({
   }
 }
 
-export async function POST(request: Request) {
+function isRequestTooLargeError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("too large") ||
+    message.includes("body exceeded") ||
+    message.includes("request entity too large") ||
+    message.includes("content length")
+  );
+}
+
+function parseContentLength(value: string | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+async function handlePost(request: Request, requestId: string) {
   const apiKey = process.env.OPENAI_API_KEY;
+  const contentLength = parseContentLength(request.headers.get("content-length"));
+  const debug = getDebugConfig();
+
+  logRedesignEvent("request_start", {
+    requestId,
+    contentType: request.headers.get("content-type") ?? "unknown",
+    contentLength: contentLength ?? "unknown",
+    debugEnabled: debug.enabled,
+    disableImageInput: debug.disableImageInput,
+    logFullOpenAIResponse: debug.logFullOpenAIResponse,
+  });
 
   if (!apiKey) {
-    return jsonError(
-      "MISSING_AI_KEY",
-      "AI redesign generation is not configured yet.",
-      500,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "MISSING_AI_KEY",
+      message: "AI redesign generation is not configured yet.",
+      status: 500,
+      retryable: false,
+    });
+  }
+
+  if (contentLength && contentLength > maxRequestBytes) {
+    return jsonLoggedError({
+      requestId,
+      code: "REQUEST_TOO_LARGE",
+      message: "The redesign request is too large. Try a smaller room photo.",
+      status: 413,
+      retryable: false,
+      details: {
+        contentLength,
+        maxRequestBytes,
+      },
+    });
   }
 
   let form: FormData;
 
   try {
     form = await request.formData();
-  } catch {
-    return jsonError(
-      "BAD_REQUEST",
-      "Send one room image and selected style as form data.",
-      400,
-      false,
-    );
+  } catch (error) {
+    if (isRequestTooLargeError(error)) {
+      return jsonLoggedError({
+        requestId,
+        code: "REQUEST_TOO_LARGE",
+        message:
+          "The redesign request is too large. Try a smaller room photo.",
+        status: 413,
+        retryable: false,
+        error,
+      });
+    }
+
+    return jsonLoggedError({
+      requestId,
+      code: "BAD_REQUEST",
+      message: "Send one room image and selected style as form data.",
+      status: 400,
+      retryable: false,
+      error,
+    });
   }
 
   const images = form.getAll("image");
@@ -234,35 +415,54 @@ export async function POST(request: Request) {
   const count = clampCount(form.get("count"));
   const style = getStyleById(styleId);
 
+  logRedesignEvent("parsed_form_data", {
+    requestId,
+    styleId,
+    roomType: typeof roomType === "string" ? roomType : null,
+    roomSizeM2: roomSizeM2 ?? null,
+    renovationScope: typeof renovationScope === "string" ? renovationScope : null,
+    qualityLevel: typeof qualityLevel === "string" ? qualityLevel : null,
+    count,
+    imageCount: images.length,
+    materialPreferencesLength: materialPreferences.length,
+    notesLength: notes.length,
+  });
+
   if (images.length !== 1) {
-    return jsonError(
-      images.length === 0 ? "MISSING_IMAGE" : "BAD_REQUEST",
-      images.length === 0
-        ? "Add one room photo before generating redesign ideas."
-        : "Send exactly one room photo for redesign generation.",
-      400,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: images.length === 0 ? "MISSING_IMAGE" : "BAD_REQUEST",
+      message:
+        images.length === 0
+          ? "Add one room photo before generating redesign ideas."
+          : "Send exactly one room photo for redesign generation.",
+      status: 400,
+      retryable: false,
+      details: { imageCount: images.length },
+    });
   }
 
   const image = images[0];
 
   if (!(image instanceof File)) {
-    return jsonError(
-      "MISSING_IMAGE",
-      "Add one room photo before generating redesign ideas.",
-      400,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "MISSING_IMAGE",
+      message: "Add one room photo before generating redesign ideas.",
+      status: 400,
+      retryable: false,
+    });
   }
 
   if (!style) {
-    return jsonError(
-      "UNKNOWN_STYLE",
-      "Choose a renovation style before generating redesign ideas.",
-      404,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "UNKNOWN_STYLE",
+      message: "Choose a renovation style before generating redesign ideas.",
+      status: 404,
+      retryable: false,
+      details: { styleId },
+    });
   }
 
   if (
@@ -270,101 +470,212 @@ export async function POST(request: Request) {
     !isRenovationScope(renovationScope) ||
     !isQualityLevel(qualityLevel)
   ) {
-    return jsonError(
-      "BAD_REQUEST",
-      "Choose room type, renovation scope, and quality level before generating redesign ideas.",
-      400,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "BAD_REQUEST",
+      message:
+        "Choose room type, renovation scope, and quality level before generating redesign ideas.",
+      status: 400,
+      retryable: false,
+      details: {
+        roomType,
+        renovationScope,
+        qualityLevel,
+      },
+    });
   }
 
   if (!allowedImageTypes.has(image.type)) {
-    return jsonError(
-      "UNSUPPORTED_IMAGE_TYPE",
-      "Use a JPG, PNG, or WebP room photo.",
-      415,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "UNSUPPORTED_IMAGE_TYPE",
+      message: "Use a JPG, PNG, or WebP room photo.",
+      status: 415,
+      retryable: false,
+      details: {
+        imageType: image.type || "unknown",
+      },
+    });
   }
 
   if (image.size > maxImageBytes) {
-    return jsonError(
-      "IMAGE_TOO_LARGE",
-      "Use a room photo smaller than 8 MB.",
-      413,
-      false,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "IMAGE_TOO_LARGE",
+      message: "Use a room photo smaller than 8 MB.",
+      status: 413,
+      retryable: false,
+      details: {
+        imageBytes: image.size,
+        maxImageBytes,
+      },
+    });
   }
 
-  const providerForm = new FormData();
-  providerForm.set("model", process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini");
-  providerForm.set("image", image);
-  providerForm.set(
-    "prompt",
-    buildPrompt({
-      style,
-      roomType,
-      roomSizeM2,
-      renovationScope,
-      qualityLevel,
-      materialPreferences,
-      notes,
-    }),
-  );
-  providerForm.set("n", "1");
-  providerForm.set("size", "1024x1024");
+  const prompt = buildPrompt({
+    style,
+    roomType,
+    roomSizeM2,
+    renovationScope,
+    qualityLevel,
+    materialPreferences,
+    notes,
+  });
+  const model = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini";
+  const providerEndpoint = debug.disableImageInput
+    ? "/images/generations"
+    : "/images/edits";
+
+  const providerPayloadSummary = {
+    requestId,
+    endpoint: providerEndpoint,
+    model,
+    promptLength: prompt.length,
+    promptPreview: debug.enabled ? truncateForLog(prompt, 300) : undefined,
+    styleId: style.id,
+    styleName: style.name,
+    roomType,
+    roomSizeM2: roomSizeM2 ?? null,
+    renovationScope,
+    qualityLevel,
+    materialPreferencesLength: materialPreferences.length,
+    notesLength: notes.length,
+    disableImageInput: debug.disableImageInput,
+    imageName: image.name,
+    imageType: image.type,
+    imageBytes: image.size,
+    count,
+    size: "1024x1024",
+  };
+
+  logRedesignEvent("provider_request_prepared", providerPayloadSummary);
+
+  const providerBody = debug.disableImageInput
+    ? JSON.stringify({
+        model,
+        prompt,
+        n: 1,
+        size: "1024x1024",
+      })
+    : (() => {
+        const providerForm = new FormData();
+        providerForm.set("model", model);
+        providerForm.set("image", image);
+        providerForm.set("prompt", prompt);
+        providerForm.set("n", "1");
+        providerForm.set("size", "1024x1024");
+        return providerForm;
+      })();
 
   let providerResponse: Response;
 
   try {
     providerResponse = await postToImageProvider({
       apiKey,
-      body: providerForm,
+      endpoint: providerEndpoint,
+      body: providerBody,
+      contentType: debug.disableImageInput ? "application/json" : undefined,
     });
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
 
-    return jsonError(
-      aborted ? "AI_TIMEOUT" : "AI_PROVIDER_ERROR",
-      aborted
+    return jsonLoggedError({
+      requestId,
+      code: aborted ? "AI_TIMEOUT" : "AI_PROVIDER_ERROR",
+      message: aborted
         ? "AI redesign generation took too long. Try again with a smaller image."
         : "AI redesign generation failed. Try again later.",
-      aborted ? 504 : 502,
-      true,
-    );
+      status: aborted ? 504 : 502,
+      retryable: true,
+      details: {
+        imageBytes: image.size,
+        imageType: image.type,
+        styleId: style.id,
+        roomType,
+        renovationScope,
+        qualityLevel,
+      },
+      error,
+    });
   }
+
+  const responseText = await providerResponse.text();
+  const openaiRequestId =
+    providerResponse.headers.get("x-request-id") ??
+    providerResponse.headers.get("openai-request-id") ??
+    undefined;
+
+  logRedesignEvent("provider_response_received", {
+    requestId,
+    endpoint: providerEndpoint,
+    status: providerResponse.status,
+    statusText: providerResponse.statusText,
+    openaiRequestId: openaiRequestId ?? null,
+    responseLength: responseText.length,
+    responseBody: debug.logFullOpenAIResponse
+      ? responseText
+      : truncateForLog(responseText, 500),
+  });
 
   let payload: OpenAIImageResponse;
 
   try {
-    payload = (await providerResponse.json()) as OpenAIImageResponse;
-  } catch {
-    return jsonError(
-      "AI_PROVIDER_ERROR",
-      "AI redesign generation returned an unreadable response.",
-      502,
-      true,
-    );
+    payload = responseText
+      ? (JSON.parse(responseText) as OpenAIImageResponse)
+      : {};
+  } catch (error) {
+    return jsonLoggedError({
+      requestId,
+      code: "AI_PROVIDER_ERROR",
+      message: "AI redesign generation returned an unreadable response.",
+      status: 502,
+      retryable: true,
+      details: {
+        endpoint: providerEndpoint,
+        providerStatus: providerResponse.status,
+        providerStatusText: providerResponse.statusText,
+        openaiRequestId,
+        responsePreview: responseText.slice(0, 500),
+      },
+      error,
+    });
   }
 
   if (!providerResponse.ok) {
-    return jsonError(
-      "AI_PROVIDER_ERROR",
-      payload.error?.message ?? "AI redesign generation failed.",
-      502,
-      true,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "AI_PROVIDER_ERROR",
+      message: payload.error?.message ?? "AI redesign generation failed.",
+      status: 502,
+      retryable: true,
+      details: {
+        endpoint: providerEndpoint,
+        providerStatus: providerResponse.status,
+        providerStatusText: providerResponse.statusText,
+        openaiRequestId,
+        imageBytes: image.size,
+        imageType: image.type,
+        responsePreview: responseText.slice(0, 500),
+      },
+    });
   }
 
   const imageUrls = getImageUrlsFromPayload(payload, count).slice(0, 1);
 
   if (imageUrls.length === 0) {
-    return jsonError(
-      "AI_PROVIDER_ERROR",
-      "AI redesign generation returned no usable image. Try again.",
-      502,
-      true,
-    );
+    return jsonLoggedError({
+      requestId,
+      code: "AI_PROVIDER_ERROR",
+      message: "AI redesign generation returned no usable image. Try again.",
+      status: 502,
+      retryable: true,
+      details: {
+        endpoint: providerEndpoint,
+        providerStatus: providerResponse.status,
+        openaiRequestId,
+        responsePreview: responseText.slice(0, 500),
+      },
+    });
   }
 
   const timestamp = Date.now().toString(36);
@@ -377,13 +688,40 @@ export async function POST(request: Request) {
       "AI-generated renovation inspiration based on your room photo and selected style.",
   }));
 
+  logRedesignEvent("request_success", {
+    requestId,
+    endpoint: providerEndpoint,
+    openaiRequestId: openaiRequestId ?? null,
+    imageBytes: image.size,
+    variantCount: variants.length,
+    usedImageInput: !debug.disableImageInput,
+  });
+
   return Response.json({
     ok: true,
     variants,
     meta: {
       styleId: style.id,
       styleName: style.name,
-      model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1-mini",
+      model,
+      imageBytes: image.size,
     },
   });
+}
+
+export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
+
+  try {
+    return await handlePost(request, requestId);
+  } catch (error) {
+    return jsonLoggedError({
+      requestId,
+      code: "INTERNAL_ERROR",
+      message: "AI redesign generation failed unexpectedly. Try again later.",
+      status: 500,
+      retryable: true,
+      error,
+    });
+  }
 }

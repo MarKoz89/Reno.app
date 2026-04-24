@@ -1,10 +1,15 @@
 export const maxUploadBytes = 4 * 1024 * 1024;
 
-const maxStoredImageDimension = 1600;
-const maxStoredImageBytes = 900 * 1024;
-const initialJpegQuality = 0.82;
-const minJpegQuality = 0.55;
-const jpegQualityStep = 0.09;
+const maxPreviewImageDimension = 1600;
+const maxPreviewImageBytes = 900 * 1024;
+const previewInitialJpegQuality = 0.82;
+const previewMinJpegQuality = 0.55;
+const previewJpegQualityStep = 0.09;
+const maxRedesignImageDimension = 2048;
+const maxRedesignImageBytes = 1600 * 1024;
+const redesignInitialJpegQuality = 0.9;
+const redesignMinJpegQuality = 0.72;
+const redesignJpegQualityStep = 0.06;
 const maxResizePasses = 4;
 
 export const allowedRoomImageTypes = new Set([
@@ -60,11 +65,16 @@ function loadImageFromFile(file: File) {
   });
 }
 
-function getScaledDimensions(width: number, height: number, scale: number) {
+function getScaledDimensionsForMaxSide(
+  width: number,
+  height: number,
+  scale: number,
+  maxDimension: number,
+) {
   const longestSide = Math.max(width, height);
   const dimensionScale =
-    longestSide > maxStoredImageDimension
-      ? maxStoredImageDimension / longestSide
+    longestSide > maxDimension
+      ? maxDimension / longestSide
       : 1;
   const finalScale = Math.min(1, scale * dimensionScale);
 
@@ -74,7 +84,15 @@ function getScaledDimensions(width: number, height: number, scale: number) {
   };
 }
 
-export async function createRoomPhotoPreviewDataUrl(file: File) {
+type RoomPhotoStorageConfig = {
+  maxBytes: number;
+  maxDimension: number;
+  initialQuality: number;
+  minQuality: number;
+  qualityStep: number;
+};
+
+async function loadRoomPhoto(file: File) {
   if (!allowedRoomImageTypes.has(file.type)) {
     throw new RoomPhotoError("unsupported-type");
   }
@@ -83,10 +101,8 @@ export async function createRoomPhotoPreviewDataUrl(file: File) {
     throw new RoomPhotoError("file-too-large");
   }
 
-  let image: HTMLImageElement;
-
   try {
-    image = await loadImageFromFile(file);
+    return await loadImageFromFile(file);
   } catch (error) {
     if (isRoomPhotoError(error)) {
       throw error;
@@ -94,7 +110,18 @@ export async function createRoomPhotoPreviewDataUrl(file: File) {
 
     throw new RoomPhotoError("read-failed");
   }
+}
 
+function createStoredRoomPhotoDataUrl(
+  image: HTMLImageElement,
+  {
+    maxBytes,
+    maxDimension,
+    initialQuality,
+    minQuality,
+    qualityStep,
+  }: RoomPhotoStorageConfig,
+) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
@@ -105,10 +132,11 @@ export async function createRoomPhotoPreviewDataUrl(file: File) {
   let resizeScale = 1;
 
   for (let resizePass = 0; resizePass < maxResizePasses; resizePass += 1) {
-    const { width, height } = getScaledDimensions(
+    const { width, height } = getScaledDimensionsForMaxSide(
       image.naturalWidth,
       image.naturalHeight,
       resizeScale,
+      maxDimension,
     );
 
     canvas.width = width;
@@ -119,19 +147,52 @@ export async function createRoomPhotoPreviewDataUrl(file: File) {
     context.drawImage(image, 0, 0, width, height);
 
     for (
-      let quality = initialJpegQuality;
-      quality >= minJpegQuality;
-      quality -= jpegQualityStep
+      let quality = initialQuality;
+      quality >= minQuality;
+      quality -= qualityStep
     ) {
-      const previewDataUrl = canvas.toDataURL("image/jpeg", quality);
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
 
-      if (getRoomPhotoDataUrlBytes(previewDataUrl) <= maxStoredImageBytes) {
-        return previewDataUrl;
+      if (getRoomPhotoDataUrlBytes(dataUrl) <= maxBytes) {
+        return dataUrl;
       }
     }
 
     resizeScale *= 0.82;
   }
 
-  return canvas.toDataURL("image/jpeg", minJpegQuality);
+  return canvas.toDataURL("image/jpeg", minQuality);
+}
+
+export async function createRoomPhotoPreviewDataUrl(file: File) {
+  const image = await loadRoomPhoto(file);
+
+  return createStoredRoomPhotoDataUrl(image, {
+    maxBytes: maxPreviewImageBytes,
+    maxDimension: maxPreviewImageDimension,
+    initialQuality: previewInitialJpegQuality,
+    minQuality: previewMinJpegQuality,
+    qualityStep: previewJpegQualityStep,
+  });
+}
+
+export async function createRoomPhotoStoredImages(file: File) {
+  const image = await loadRoomPhoto(file);
+
+  return {
+    previewDataUrl: createStoredRoomPhotoDataUrl(image, {
+      maxBytes: maxPreviewImageBytes,
+      maxDimension: maxPreviewImageDimension,
+      initialQuality: previewInitialJpegQuality,
+      minQuality: previewMinJpegQuality,
+      qualityStep: previewJpegQualityStep,
+    }),
+    redesignDataUrl: createStoredRoomPhotoDataUrl(image, {
+      maxBytes: maxRedesignImageBytes,
+      maxDimension: maxRedesignImageDimension,
+      initialQuality: redesignInitialJpegQuality,
+      minQuality: redesignMinJpegQuality,
+      qualityStep: redesignJpegQualityStep,
+    }),
+  };
 }

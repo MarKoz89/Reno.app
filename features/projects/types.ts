@@ -12,7 +12,13 @@ export type UploadedRoomImage = {
   label: string;
   addedAt: string;
   previewDataUrl?: string;
+  redesignDataUrl?: string;
 };
+
+export type ProjectImageKind =
+  | "preview"
+  | "redesign_source"
+  | "selected_redesign";
 
 export type RenovationStyle = {
   id: string;

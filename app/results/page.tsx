@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   calculateEstimate,
   getEstimateInputSummary,
 } from "@/features/estimation/calculate-estimate";
-import { saveProjectFromDraft } from "@/features/projects/local-projects";
+import { saveProjectFromDraftToBackend } from "@/features/projects/backend-projects";
 import { useDraftProject } from "@/features/projects/use-local-projects";
 import { getDictionary } from "@/features/ui/dictionary";
 import { formatCurrency } from "@/features/ui/format";
@@ -106,10 +107,27 @@ export default function ResultsPage() {
   const project = useDraftProject();
   const { language, currency } = usePreferences();
   const text = getDictionary(language);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
 
-  function handleSaveProject() {
-    const savedProject = saveProjectFromDraft();
-    router.push(`/projects/${savedProject.id}`);
+  async function handleSaveProject() {
+    setIsSavingProject(true);
+    setSaveErrorMessage(null);
+
+    try {
+      const savedProject = await saveProjectFromDraftToBackend();
+      router.push(`/projects/${savedProject.id}`);
+    } catch (error) {
+      setSaveErrorMessage(
+        error instanceof Error
+          ? error.message
+          : language === "cs"
+            ? "Projekt se nepodarilo ulozit."
+            : "The project could not be saved.",
+      );
+    } finally {
+      setIsSavingProject(false);
+    }
   }
 
   const estimate = project ? calculateEstimate(project) : undefined;
@@ -126,6 +144,11 @@ export default function ResultsPage() {
     : inputSummary?.qualityLevel;
   const materialPreferencesLabel =
     language === "cs" ? "Materialy a povrchy" : "Material preferences";
+  const rangeGuideItems = [
+    { label: text.common.low, description: text.results.rangeGuideLow },
+    { label: text.common.mid, description: text.results.rangeGuideMid },
+    { label: text.common.high, description: text.results.rangeGuideHigh },
+  ];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-16">
@@ -163,6 +186,40 @@ export default function ResultsPage() {
             <p className="mt-3 text-sm leading-6 text-zinc-600">
               {text.results.midEstimate}: {formatCurrency(estimate.midTotal, currency)}. {text.results.notQuote}
             </p>
+            <div className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-sm font-medium text-zinc-950">
+                {text.results.notQuote}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                {text.results.scopeBoundary}
+              </p>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    {text.results.estimateConfidence}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold text-zinc-950">
+                    {estimate.confidenceScore}/100
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                    {text.results.confidenceTopNote}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    {text.results.rangeGuideTitle}
+                  </p>
+                  <ul className="mt-2 space-y-2 text-sm leading-6 text-zinc-600">
+                    {rangeGuideItems.map((item) => (
+                      <li key={item.label}>
+                        <span className="font-medium text-zinc-900">{item.label}:</span>{" "}
+                        {item.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
 
             <div className="mt-6 grid gap-4 border-t border-zinc-200 pt-5 sm:grid-cols-2 lg:grid-cols-4">
               <div>
@@ -277,6 +334,9 @@ export default function ResultsPage() {
             <h2 className="text-xl font-semibold text-zinc-950">
               {text.results.costBreakdown}
             </h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              {text.results.exclusionsReminder}
+            </p>
             <div className="mt-5 divide-y divide-zinc-200">
               {estimate.lineItems.map((item) => (
                 <div key={item.label} className="py-4">
@@ -390,9 +450,14 @@ export default function ResultsPage() {
             <button
               type="button"
               onClick={handleSaveProject}
+              disabled={isSavingProject}
               className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
             >
-              {text.results.saveProject}
+              {isSavingProject
+                ? language === "cs"
+                  ? "Ukladani projektu..."
+                  : "Saving project..."
+                : text.results.saveProject}
             </button>
             <Link
               href="/projects"
@@ -401,6 +466,12 @@ export default function ResultsPage() {
               {text.common.viewProjects}
             </Link>
           </div>
+
+          {saveErrorMessage ? (
+            <p className="text-sm leading-6 text-red-700">
+              {saveErrorMessage}
+            </p>
+          ) : null}
         </div>
       )}
     </main>

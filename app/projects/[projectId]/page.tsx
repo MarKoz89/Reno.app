@@ -9,7 +9,7 @@ import { usePreferences } from "@/features/ui/use-preferences";
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
-  const project = useProjectForDisplay(params.projectId);
+  const { isLoading, project } = useProjectForDisplay(params.projectId);
   const { language, currency } = usePreferences();
   const text = getDictionary(language);
   const savedEstimate = project?.estimate;
@@ -21,6 +21,21 @@ export default function ProjectDetailPage() {
     ? savedEstimate.midTotal ??
       Math.round((savedEstimate.lowTotal + savedEstimate.highTotal) / 2)
     : undefined;
+
+  if (isLoading && !project) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16">
+        <p className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
+          {text.projectDetail.label}
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
+          {language === "cs"
+            ? "Nacitani projektu"
+            : "Loading project"}
+        </h1>
+      </main>
+    );
+  }
 
   if (!project) {
     return (
